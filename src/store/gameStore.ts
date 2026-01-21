@@ -25,7 +25,7 @@ import { getDefaultHabit } from '@/data/habits';
 const initialState = {
   level: 1,
   currentExp: 0,
-  maxExp: 100,
+  maxExp: 150, // 修复：1级升2级需要150经验（1 * 100 * 1.5）
   coins: 0,
   categorizedCoins: {
     int: 0,
@@ -2868,6 +2868,11 @@ export const useGameStore = create<GameStore>()(
               }
             });
           }
+        }
+
+        // 修复旧用户的 maxExp 值（1级应该是150，不是100）
+        if (state && state.level === 1 && state.maxExp === 100) {
+          state.maxExp = 150;
         }
 
         // 迁移签到连击数据
