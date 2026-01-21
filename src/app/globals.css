@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 导入 Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+/* CSS 变量定义 */
+:root {
+  --bg-color: #050505;
+  --text-color: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+@layer base {
+  body {
+    @apply font-inter;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* 白天模式 - 更干练更干净的配色 */
+  [data-theme="light"] {
+    --bg-color: #fafbfc;
+    --text-color: #2d3748;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(100, 116, 139, 0.15);
+  }
+
+  /* 白天模式文字颜色调整 */
+  [data-theme="light"] .text-white {
+    color: #1a202c !important;
+  }
+
+  [data-theme="light"] .text-white\/60 {
+    color: rgba(45, 55, 72, 0.7) !important;
+  }
+
+  [data-theme="light"] .text-white\/70 {
+    color: rgba(45, 55, 72, 0.75) !important;
+  }
+
+  [data-theme="light"] .text-white\/40 {
+    color: rgba(100, 116, 139, 0.6) !important;
+  }
+
+  [data-theme="light"] .text-white\/50 {
+    color: rgba(100, 116, 139, 0.65) !important;
+  }
+
+  [data-theme="light"] .text-white\/30 {
+    color: rgba(148, 163, 184, 0.5) !important;
+  }
+
+  [data-theme="light"] .text-white\/20 {
+    color: rgba(148, 163, 184, 0.4) !important;
+  }
+
+  /* 白天模式 Cyber 颜色优化 - 降低饱和度，更专业 */
+  [data-theme="light"] .text-cyber-cyan {
+    color: #0284c7 !important;
+  }
+
+  [data-theme="light"] .text-cyber-purple {
+    color: #7c3aed !important;
+  }
+
+  [data-theme="light"] .text-cyber-green {
+    color: #059669 !important;
+  }
+
+  [data-theme="light"] .bg-cyber-cyan {
+    background-color: #0284c7 !important;
+  }
+
+  [data-theme="light"] .bg-cyber-purple {
+    background-color: #7c3aed !important;
+  }
+
+  [data-theme="light"] .bg-cyber-green {
+    background-color: #059669 !important;
+  }
+
+  /* 白天模式渐变优化 */
+  [data-theme="light"] .bg-gradient-to-r.from-cyber-cyan {
+    --tw-gradient-from: #0ea5e9 !important;
+  }
+
+  [data-theme="light"] .via-cyber-purple {
+    --tw-gradient-to: #8b5cf6 !important;
+  }
+
+  [data-theme="light"] .to-cyber-cyan,
+  [data-theme="light"] .to-cyber-green {
+    --tw-gradient-to: #06b6d4 !important;
+  }
+
+  /* 白天模式背景透明度 */
+  [data-theme="light"] .bg-white\/5 {
+    background-color: rgba(71, 85, 105, 0.08) !important;
+  }
+
+  [data-theme="light"] .bg-white\/10 {
+    background-color: rgba(71, 85, 105, 0.12) !important;
+  }
+
+  [data-theme="light"] .bg-black\/20,
+  [data-theme="light"] .bg-black\/30 {
+    background-color: rgba(255, 255, 255, 0.6) !important;
+  }
+
+  [data-theme="light"] .bg-black\/80 {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+  }
+
+  /* 白天模式边框 */
+  [data-theme="light"] .border-white\/10 {
+    border-color: rgba(100, 116, 139, 0.2) !important;
+  }
+
+  /* 白天模式图标颜色优化 */
+  [data-theme="light"] .text-yellow-400 {
+    color: #d97706 !important;
+  }
+
+  [data-theme="light"] .text-purple-400 {
+    color: #7c3aed !important;
+  }
+
+  [data-theme="light"] .bg-yellow-400 {
+    background-color: #f59e0b !important;
+  }
+
+  /* 白天模式表单元素样式 */
+  [data-theme="light"] input,
+  [data-theme="light"] textarea,
+  [data-theme="light"] select {
+    color: #1a202c !important;
+    background-color: rgba(71, 85, 105, 0.08) !important;
+    border-color: rgba(100, 116, 139, 0.25) !important;
+  }
+
+  [data-theme="light"] input::placeholder,
+  [data-theme="light"] textarea::placeholder {
+    color: rgba(100, 116, 139, 0.5) !important;
+  }
+
+  [data-theme="light"] select option {
+    background-color: #ffffff !important;
+    color: #1a202c !important;
+  }
+
+  [data-theme="light"] input:focus,
+  [data-theme="light"] textarea:focus,
+  [data-theme="light"] select:focus {
+    border-color: #0284c7 !important;
+  }
+}
+
+@layer utilities {
+  /* 毛玻璃效果 */
+  .glass-card {
+    @apply rounded-2xl;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+
+  /* 白天模式的玻璃卡片增强阴影 */
+  [data-theme="light"] .glass-card {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+
+  /* 自定义滚动条 */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-white/5 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-cyber-cyan/50 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-cyber-cyan;
+  }
+
+  /* 流光动画 */
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+}
