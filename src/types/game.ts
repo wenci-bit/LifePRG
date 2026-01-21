@@ -475,6 +475,14 @@ export interface GameActions {
   recheckTodayCheckInStatus: () => void;
   getTodayHabitSummary: () => DailyHabitSummary;
 
+  // 属性警告
+  getLowAttributeWarnings: () => Array<{
+    attribute: AttributeType;
+    value: number;
+    level: 'critical' | 'warning' | 'low';
+    message: string;
+  }>;
+
   // 设置
   updateSettings: (settings: Partial<GameState['settings']>) => void;
 

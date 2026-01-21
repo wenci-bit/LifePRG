@@ -36,10 +36,10 @@ const initialState = {
   },
   achievementPoints: 0,
   attributes: {
-    int: 0,
-    vit: 0,
-    mng: 0,
-    cre: 0,
+    int: 60,
+    vit: 60,
+    mng: 60,
+    cre: 60,
   },
   // 属性平衡系统
   attributeRecords: [],
@@ -1552,21 +1552,33 @@ export const useGameStore = create<GameStore>()(
         // 计算属性衰减（每日登录时检查）
         get().calculateAttributeDecay();
 
+        // 如果是首次登录（新用户），只更新登录日期，不给奖励
+        if (!lastLogin) {
+          set((state) => ({
+            stats: {
+              ...state.stats,
+              lastLoginDate: today,
+              currentStreak: 1,
+              longestStreak: 1,
+              totalLoginDays: 1,
+            },
+          }));
+          return;
+        }
+
         let newStreak = 1;
         let dailyReward = 10; // 基础每日奖励
 
-        if (lastLogin) {
-          const daysDiff = getDaysDifference(lastLogin, today);
+        const daysDiff = getDaysDifference(lastLogin, today);
 
-          if (daysDiff === 1) {
-            // 连续登录
-            newStreak = state.stats.currentStreak + 1;
-            // 连击奖励递增
-            dailyReward += Math.min(newStreak * 5, 50);
-          } else if (daysDiff > 1) {
-            // 连击中断
-            newStreak = 1;
-          }
+        if (daysDiff === 1) {
+          // 连续登录
+          newStreak = state.stats.currentStreak + 1;
+          // 连击奖励递增
+          dailyReward += Math.min(newStreak * 5, 50);
+        } else if (daysDiff > 1) {
+          // 连击中断
+          newStreak = 1;
         }
 
         // 更新状态
@@ -2676,6 +2688,63 @@ export const useGameStore = create<GameStore>()(
           completionRate,
           allCompleted,
         };
+      },
+
+      /**
+       * 获取低属性警告
+       * 返回低于阈值的属性列表
+       */
+      getLowAttributeWarnings: () => {
+        const state = get();
+        const warnings: Array<{
+          attribute: AttributeType;
+          value: number;
+          level: 'critical' | 'warning' | 'low';
+          message: string;
+        }> = [];
+
+        const attributeNames = {
+          int: '智力/科研',
+          vit: '活力/健康',
+          mng: '管理/规划',
+          cre: '创造/灵感',
+        };
+
+        // 定义属性区间
+        const thresholds = {
+          critical: 30,  // 危险区间：< 30
+          warning: 45,   // 警告区间：30-45
+          low: 60,       // 偏低区间：45-60
+        };
+
+        Object.entries(state.attributes).forEach(([attr, value]) => {
+          const attribute = attr as AttributeType;
+
+          if (value < thresholds.critical) {
+            warnings.push({
+              attribute,
+              value,
+              level: 'critical',
+              message: `${attributeNames[attribute]}严重不足！当前值：${value}，建议立即完成相关任务提升。`,
+            });
+          } else if (value < thresholds.warning) {
+            warnings.push({
+              attribute,
+              value,
+              level: 'warning',
+              message: `${attributeNames[attribute]}偏低。当前值：${value}，建议尽快完成相关任务。`,
+            });
+          } else if (value < thresholds.low) {
+            warnings.push({
+              attribute,
+              value,
+              level: 'low',
+              message: `${attributeNames[attribute]}略低。当前值：${value}，可以考虑提升。`,
+            });
+          }
+        });
+
+        return warnings;
       },
 
       /**

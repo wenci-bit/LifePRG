@@ -17,6 +17,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import LevelUpNotification from '@/components/LevelUpNotification';
 import AchievementNotification from '@/components/AchievementNotification';
 import CheckInNotification from '@/components/CheckInNotification';
+import LowAttributeWarning from '@/components/LowAttributeWarning';
 import LoginPage from '@/components/LoginPage';
 import { useGameStore } from '@/store/gameStore';
 import { useUserStore } from '@/store/userStore';
@@ -95,6 +96,7 @@ function PageSkeleton() {
 export default function Home() {
   const [showHero, setShowHero] = useState(true);
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [showLowAttributeWarning, setShowLowAttributeWarning] = useState(false);
 
   // 用户状态
   const isLoggedIn = useUserStore((state) => state.isLoggedIn);
@@ -107,6 +109,7 @@ export default function Home() {
   const dismissAchievementNotification = useGameStore((state) => state.dismissAchievementNotification);
   const dismissCheckInNotification = useGameStore((state) => state.dismissCheckInNotification);
   const checkDailyLogin = useGameStore((state) => state.checkDailyLogin);
+  const getLowAttributeWarnings = useGameStore((state) => state.getLowAttributeWarnings);
 
   // 检查每日登录（仅在用户已登录时）
   useEffect(() => {
@@ -114,6 +117,24 @@ export default function Home() {
       checkDailyLogin();
     }
   }, [checkDailyLogin, isLoggedIn]);
+
+  // 检查低属性警告（进入主应用后延迟3秒显示）
+  useEffect(() => {
+    if (isLoggedIn && !showHero) {
+      const timer = setTimeout(() => {
+        const warnings = getLowAttributeWarnings();
+        // 只显示 critical 和 warning 级别的警告
+        const importantWarnings = warnings.filter(
+          (w) => w.level === 'critical' || w.level === 'warning'
+        );
+        if (importantWarnings.length > 0) {
+          setShowLowAttributeWarning(true);
+        }
+      }, 3000); // 延迟3秒，避免与其他通知冲突
+
+      return () => clearTimeout(timer);
+    }
+  }, [isLoggedIn, showHero, getLowAttributeWarnings]);
 
   // 从欢迎页进入主应用
   const handleEnter = () => {
@@ -174,6 +195,17 @@ export default function Home() {
           day={checkInNotification.day}
           rewards={checkInNotification.rewards}
           onClose={dismissCheckInNotification}
+        />
+      )}
+
+      {/* 低属性警告 */}
+      {showLowAttributeWarning && (
+        <LowAttributeWarning
+          warnings={getLowAttributeWarnings().filter(
+            (w) => w.level === 'critical' || w.level === 'warning'
+          )}
+          onClose={() => setShowLowAttributeWarning(false)}
+          onNavigateToQuests={() => setCurrentPage('quests')}
         />
       )}
 
