@@ -118,7 +118,7 @@ export default function Home() {
     }
   }, [checkDailyLogin, isLoggedIn]);
 
-  // 检查低属性警告（进入主应用后延迟3秒显示）
+  // 检查低属性警告（进入主应用后延迟3秒显示，只检查一次）
   useEffect(() => {
     if (isLoggedIn && !showHero) {
       const timer = setTimeout(() => {
@@ -134,7 +134,8 @@ export default function Home() {
 
       return () => clearTimeout(timer);
     }
-  }, [isLoggedIn, showHero, getLowAttributeWarnings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, showHero]); // 只依赖登录状态和欢迎页状态，避免频繁触发
 
   // 从欢迎页进入主应用
   const handleEnter = () => {

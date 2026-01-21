@@ -128,6 +128,28 @@ const calculateMaxExp = (level: number): number => {
 };
 
 /**
+ * 创建初始属性记录
+ * 为初始的60点属性创建记录，使其也能参与衰减
+ */
+const createInitialAttributeRecords = () => {
+  const now = Date.now();
+  const attributes: AttributeType[] = ['int', 'vit', 'mng', 'cre'];
+
+  return attributes.map(attr => ({
+    id: `initial-${attr}-${now}`,
+    attribute: attr,
+    amount: 60,
+    gainedAt: now,
+    reason: '初始属性',
+    relatedId: 'initial',
+    decayRate: initialState.attributeDecayConfig[attr].decayRate,
+    halfLifeDays: initialState.attributeDecayConfig[attr].halfLifeDays,
+    currentValue: 60,
+    decayedAt: now,
+  }));
+};
+
+/**
  * 获取当前日期字符串 (YYYY-MM-DD) - 使用本地时间
  */
 const getTodayString = (): string => {
@@ -419,7 +441,8 @@ export const useGameStore = create<GameStore>()(
 
       /**
        * 移除特定任务的动态属性记录
-       * 用于取消完成任务时追回属性（扣除初始获得的完整值）
+       * 用于取消完成任务时追回属性
+       * 修复：扣除当前值（衰减后）而不是初始值
        */
       removeDynamicAttribute: (attr: AttributeType, relatedId: string) => {
         const state = get();
@@ -431,8 +454,9 @@ export const useGameStore = create<GameStore>()(
 
         if (recordsToRemove.length === 0) return;
 
-        // 计算需要扣除的总属性值（使用初始值 amount，而不是衰减后的 currentValue）
-        const totalValueToRemove = recordsToRemove.reduce((sum, r) => sum + r.amount, 0);
+        // 计算需要扣除的总属性值（使用 currentValue 衰减后的值，而不是 amount 初始值）
+        // 这样更公平：用户获得10点，衰减到8点后取消任务，只扣除8点
+        const totalValueToRemove = recordsToRemove.reduce((sum, r) => sum + r.currentValue, 0);
 
         // 移除记录并更新总属性值
         set((state) => {
@@ -482,7 +506,13 @@ export const useGameStore = create<GameStore>()(
 
           if (daysPassed < 1) return record; // 不到一天，不衰减
 
-          // 使用指数衰减公式：currentValue = amount * (1 - decayRate)^daysPassed
+          // 使用指数衰减公式：newValue = amount * (1 - decayRate)^daysPassed
+          // 注意：这里使用 amount（初始值）而不是 currentValue
+          // 因为我们要基于获得时的原始值计算总衰减，而不是累积衰减
+          // 例如：第1天获得10点，衰减率5%
+          //   第1天结束：10 * 0.95^1 = 9.5
+          //   第2天结束：10 * 0.95^2 = 9.025（而不是 9.5 * 0.95 = 9.025）
+          // 两种计算方式结果相同，但使用 amount 可以避免累积误差
           const decayMultiplier = Math.pow(1 - config.decayRate, Math.floor(daysPassed));
           const newValue = Math.max(record.amount * decayMultiplier, config.minValue);
           const decayAmount = record.currentValue - newValue;
@@ -624,12 +654,16 @@ export const useGameStore = create<GameStore>()(
         // 分配分类金币（根据任务属性）
         const coinAmount = quest.coinReward;
         const attributes = quest.attributes || []; // 支持多属性
-        const universalAmount = Math.floor(coinAmount * 0.3); // 30% 转为通用币
 
         if (attributes.length > 0) {
-          // 将金币平均分配到各个属性
-          const coinPerAttribute = Math.floor(coinAmount / attributes.length);
+          // 金币分配策略：70%分配到属性，30%作为通用币
+          const attributeCoinAmount = Math.floor(coinAmount * 0.7); // 70%分配到属性
+          const universalAmount = coinAmount - attributeCoinAmount; // 剩余30%作为通用币
+
+          // 将属性金币平均分配到各个属性
+          const coinPerAttribute = Math.floor(attributeCoinAmount / attributes.length);
           const actualDistributed = coinPerAttribute * attributes.length; // 实际分配的总额（考虑取整损失）
+          const remainder = attributeCoinAmount - actualDistributed; // 取整损失的余数
 
           const newCategorizedCoins = { ...state.categorizedCoins };
           attributes.forEach(attr => {
@@ -637,14 +671,17 @@ export const useGameStore = create<GameStore>()(
             // 记录分类金币获取
             get().addCoinTransaction('earn', attr, coinPerAttribute, `完成任务: ${quest.title}`, questId);
           });
-          newCategorizedCoins.universal = newCategorizedCoins.universal + universalAmount;
+
+          // 通用币 = 30%基础 + 取整损失的余数
+          const finalUniversalAmount = universalAmount + remainder;
+          newCategorizedCoins.universal = newCategorizedCoins.universal + finalUniversalAmount;
 
           // 记录通用金币获取
-          get().addCoinTransaction('earn', 'all', universalAmount, `完成任务: ${quest.title}（通用）`, questId);
+          get().addCoinTransaction('earn', 'universal', finalUniversalAmount, `完成任务: ${quest.title}（通用）`, questId);
 
           set((state) => ({
             categorizedCoins: newCategorizedCoins,
-            coins: state.coins + actualDistributed + universalAmount, // 总金币 = 实际分配 + 通用币
+            coins: state.coins + coinAmount, // 总金币 = 任务奖励（100%）
           }));
 
           // 增加对应属性，每个属性增加 10（使用动态属性，支持衰减）
@@ -2752,8 +2789,25 @@ export const useGameStore = create<GameStore>()(
        */
       resetGame: () => {
         const currentSettings = get().settings;
+        const now = Date.now();
+
+        // 创建初始属性记录
+        const initialAttributeRecords = (['int', 'vit', 'mng', 'cre'] as AttributeType[]).map(attr => ({
+          id: `initial-${attr}-${now}`,
+          attribute: attr,
+          amount: 60,
+          gainedAt: now,
+          reason: '初始属性',
+          relatedId: 'initial',
+          decayRate: initialState.attributeDecayConfig[attr].decayRate,
+          halfLifeDays: initialState.attributeDecayConfig[attr].halfLifeDays,
+          currentValue: 60,
+          decayedAt: now,
+        }));
+
         set({
           ...initialState,
+          attributeRecords: initialAttributeRecords, // 添加初始属性记录
           settings: currentSettings, // 保留用户设置
         });
       },
@@ -2781,6 +2835,39 @@ export const useGameStore = create<GameStore>()(
             }
             return quest;
           });
+        }
+
+        // 迁移初始属性记录（修复初始60点不衰减的问题）
+        if (state && state.attributeRecords) {
+          // 检查是否已有初始属性记录
+          const hasInitialRecords = state.attributeRecords.some(
+            (r: any) => r.relatedId === 'initial'
+          );
+
+          // 如果没有初始记录，且属性值为60（说明是旧数据），则创建初始记录
+          if (!hasInitialRecords) {
+            const attributes: AttributeType[] = ['int', 'vit', 'mng', 'cre'];
+            const now = Date.now();
+
+            attributes.forEach(attr => {
+              // 只为值为60的属性创建初始记录（避免影响已经变化的属性）
+              if (state.attributes[attr] === 60) {
+                const record = {
+                  id: `initial-${attr}-${now}`,
+                  attribute: attr,
+                  amount: 60,
+                  gainedAt: now,
+                  reason: '初始属性',
+                  relatedId: 'initial',
+                  decayRate: state.attributeDecayConfig[attr].decayRate,
+                  halfLifeDays: state.attributeDecayConfig[attr].halfLifeDays,
+                  currentValue: 60,
+                  decayedAt: now,
+                };
+                state.attributeRecords.push(record);
+              }
+            });
+          }
         }
 
         // 迁移签到连击数据
