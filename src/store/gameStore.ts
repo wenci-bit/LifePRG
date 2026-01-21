@@ -266,7 +266,7 @@ export const useGameStore = create<GameStore>()(
             levelsGained.forEach(levelInfo => {
               get().addCoinTransaction(
                 'earn',
-                'all',
+                'universal',
                 levelInfo.rewards.coins,
                 `升级到等级 ${levelInfo.level}`,
                 `level-${levelInfo.level}`
@@ -281,6 +281,10 @@ export const useGameStore = create<GameStore>()(
               currentExp: currentExp,
               maxExp: currentMaxExp,
               coins: state.coins + totalCoinsRewarded,
+              categorizedCoins: {
+                ...state.categorizedCoins,
+                universal: state.categorizedCoins.universal + totalCoinsRewarded,
+              },
               notifications: {
                 ...state.notifications,
                 levelUp: {
@@ -699,7 +703,7 @@ export const useGameStore = create<GameStore>()(
           }));
 
           // 记录通用金币获取
-          get().addCoinTransaction('earn', 'all', coinAmount, `完成任务: ${quest.title}`, questId);
+          get().addCoinTransaction('earn', 'universal', coinAmount, `完成任务: ${quest.title}`, questId);
         }
 
         // 如果是子任务，更新父任务进度
@@ -1252,8 +1256,12 @@ export const useGameStore = create<GameStore>()(
         if (achievement.reward.coins > 0) {
           set((state) => ({
             coins: state.coins + achievement.reward.coins,
+            categorizedCoins: {
+              ...state.categorizedCoins,
+              universal: state.categorizedCoins.universal + achievement.reward.coins,
+            },
           }));
-          get().addCoinTransaction('earn', 'all', achievement.reward.coins, `解锁成就: ${achievement.title}`, achievementId);
+          get().addCoinTransaction('earn', 'universal', achievement.reward.coins, `解锁成就: ${achievement.title}`, achievementId);
         }
       },
 
@@ -1541,9 +1549,23 @@ export const useGameStore = create<GameStore>()(
         if (achievement.reward.coins > 0) {
           const revokedCoins = get().revokeCoinTransactions(achievementId, revokeReason);
           if (revokedCoins.length > 0) {
-            const totalCoinsToDeduct = revokedCoins.reduce((sum, { amount }) => sum + amount, 0);
+            const newCategorizedCoins = { ...state.categorizedCoins };
+            let totalCoinsToDeduct = 0;
+
+            revokedCoins.forEach(({ coinType, amount }) => {
+              if (coinType === 'all' || coinType === 'universal') {
+                newCategorizedCoins.universal = Math.max(0, newCategorizedCoins.universal - amount);
+              } else {
+                newCategorizedCoins[coinType as AttributeType] = Math.max(
+                  0,
+                  newCategorizedCoins[coinType as AttributeType] - amount
+                );
+              }
+              totalCoinsToDeduct += amount;
+            });
 
             set((state) => ({
+              categorizedCoins: newCategorizedCoins,
               coins: Math.max(0, state.coins - totalCoinsToDeduct),
             }));
           }
@@ -1628,10 +1650,14 @@ export const useGameStore = create<GameStore>()(
             totalLoginDays: state.stats.totalLoginDays + 1,
           },
           coins: state.coins + dailyReward,
+          categorizedCoins: {
+            ...state.categorizedCoins,
+            universal: state.categorizedCoins.universal + dailyReward,
+          },
         }));
 
         // 记录金币获取
-        get().addCoinTransaction('earn', 'all', dailyReward, `每日登录（第${newStreak}天连击）`, `login-${today}`);
+        get().addCoinTransaction('earn', 'universal', dailyReward, `每日登录（第${newStreak}天连击）`, `login-${today}`);
 
         // 添加经验奖励
         get().addExp(dailyReward * 2, `每日登录（第${newStreak}天连击）`, `login-${today}`);
@@ -1748,7 +1774,7 @@ export const useGameStore = create<GameStore>()(
         }));
 
         // 记录通用金币获取
-        get().addCoinTransaction('earn', 'all', reward.coins, `每日签到（第${consecutiveDays}天）`, `checkin-${today}`);
+        get().addCoinTransaction('earn', 'universal', reward.coins, `每日签到（第${consecutiveDays}天）`, `checkin-${today}`);
 
         // 如果有分类金币奖励，也发放并记录
         if (reward.categorizedCoins) {
