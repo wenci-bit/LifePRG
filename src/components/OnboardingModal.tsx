@@ -197,15 +197,13 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
           repeatPattern: {
             type: 'daily',
           },
-          attributes: [],
-          expReward: 10,
-          coinReward: 5,
+          isLongTerm: true,
+          startDate: Date.now(),
           stats: {
-            totalCheckIns: 0,
+            totalCompletions: 0,
             currentStreak: 0,
             longestStreak: 0,
             completionRate: 0,
-            lastCheckInDate: undefined,
           },
         });
       }
@@ -223,15 +221,13 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
       repeatPattern: {
         type: 'daily',
       },
-      attributes: ['vit' as any],
-      expReward: 5,
-      coinReward: 3,
+      isLongTerm: true,
+      startDate: Date.now(),
       stats: {
-        totalCheckIns: 0,
+        totalCompletions: 0,
         currentStreak: 0,
         longestStreak: 0,
         completionRate: 0,
-        lastCheckInDate: undefined,
       },
     });
   };
