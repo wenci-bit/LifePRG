@@ -178,7 +178,7 @@ export default function AchievementsPage() {
 
         {/* 系列统计 */}
         <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-8 gap-4 mt-6">
-          {(['scholar', 'warrior', 'guardian', 'explorer', 'master', 'legendary', 'merchant', 'timemaster', 'collector', 'perfectionist', 'digitartist', 'extreme', 'habit', 'event', 'speed'] as AchievementSeries[]).map((series) => {
+          {(['scholar', 'warrior', 'explorer', 'legendary', 'merchant', 'timemaster', 'collector', 'perfectionist', 'digitartist', 'extreme', 'habit', 'event', 'speed'] as AchievementSeries[]).map((series) => {
             const seriesAchievements = achievementsBySeries[series];
             const seriesUnlocked = seriesAchievements.filter(a => a.isUnlocked).length;
             const seriesInfo = SERIES_INFO[series];
