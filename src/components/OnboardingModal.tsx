@@ -67,6 +67,8 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
   const [aiError, setAiError] = useState<string | null>(null);
   const [generatedTasks, setGeneratedTasks] = useState<AITaskSuggestion[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
+  const [aiProgress, setAiProgress] = useState(''); // AI生成进度提示
+  const [backgroundGeneration, setBackgroundGeneration] = useState(false); // 是否后台生成
 
   const totalSteps = 4; // 增加一个步骤用于AI生成
 
@@ -88,10 +90,24 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
     }
   };
 
+  // 跳过AI生成
+  const handleSkipAI = () => {
+    setAiLoading(false);
+    setAiError(null);
+    setGeneratedTasks([]);
+  };
+
+  // 后台生成
+  const handleBackgroundGeneration = () => {
+    setBackgroundGeneration(true);
+    // 继续生成，但允许用户完成注册
+  };
+
   // AI生成任务和习惯
   const generateAITasksAndHabits = async () => {
     setAiLoading(true);
     setAiError(null);
+    setAiProgress('正在连接 AI 服务...');
 
     try {
       const onboardingData = {
@@ -112,7 +128,11 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
         attributes: gameState.attributes,
       };
 
+      setAiProgress('AI 正在分析你的目标...');
+
       const tasks = await generateDailyTaskSuggestions(onboardingData, userStats);
+
+      setAiProgress('任务生成成功！');
       setGeneratedTasks(tasks);
 
       // 默认全选
@@ -120,6 +140,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
     } catch (error) {
       console.error('AI生成失败:', error);
       setAiError(error instanceof Error ? error.message : '生成失败，请重试');
+      setAiProgress('');
     } finally {
       setAiLoading(false);
     }
@@ -267,7 +288,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
     if (step === 1) return selectedRole !== null && (selectedRole !== 'other' || customRole.trim().length > 0);
     if (step === 2) return selectedGoals.length > 0 || customGoals.length > 0;
     if (step === 3) return true;
-    if (step === 4) return !aiLoading; // 只要不在加载中就可以继续，即使AI失败也能完成
+    if (step === 4) return !aiLoading || backgroundGeneration; // 不在加载中，或者已选择后台生成
     return false;
   };
 
@@ -539,10 +560,56 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
               </div>
 
               {/* 加载状态 */}
-              {aiLoading && (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <Loader2 className="w-12 h-12 text-cyber-cyan animate-spin mb-4" />
-                  <p className="text-white/60">AI 正在为你生成任务...</p>
+              {aiLoading && !backgroundGeneration && (
+                <div className="space-y-6">
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loader2 className="w-12 h-12 text-cyber-cyan animate-spin mb-4" />
+                    <p className="text-white text-lg font-medium mb-2">AI 正在为你生成任务...</p>
+                    {aiProgress && (
+                      <p className="text-white/60 text-sm">{aiProgress}</p>
+                    )}
+                  </div>
+
+                  {/* 跳过和后台生成按钮 */}
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={handleBackgroundGeneration}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-400 rounded-lg transition-all border border-cyan-500/30 font-medium flex items-center justify-center gap-2"
+                    >
+                      <Zap className="w-5 h-5" />
+                      后台继续生成，我先完成注册
+                    </button>
+                    <button
+                      onClick={handleSkipAI}
+                      className="w-full px-6 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg transition-all font-medium"
+                    >
+                      跳过 AI 生成
+                    </button>
+                  </div>
+
+                  <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <p className="text-blue-400 text-xs leading-relaxed">
+                      💡 提示：选择"后台继续生成"可以让 AI 在后台完成任务生成，你可以先进入主页。生成完成后任务会自动添加到任务列表。
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 后台生成提示 */}
+              {backgroundGeneration && aiLoading && (
+                <div className="p-6 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-xl">
+                  <div className="flex items-start gap-4">
+                    <Loader2 className="w-6 h-6 text-cyan-400 animate-spin flex-shrink-0 mt-1" />
+                    <div>
+                      <h4 className="text-white font-bold mb-2">AI 正在后台生成任务</h4>
+                      <p className="text-white/70 text-sm mb-3">
+                        你可以先完成注册进入主页，AI 生成的任务会自动添加到你的任务列表中。
+                      </p>
+                      {aiProgress && (
+                        <p className="text-cyan-400 text-sm">当前进度：{aiProgress}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
