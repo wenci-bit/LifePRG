@@ -1335,27 +1335,115 @@ export const useGameStore = create<GameStore>()(
                 break;
 
               case 'attribute':
-                // 单项属性达到要求 (包括大师系列和守护者系列)
-                if (achievement.id.startsWith('int_master') || achievement.id === 'int_master_i') {
-                  current = state.attributes.int;
-                } else if (achievement.id.startsWith('vit_master') || achievement.id === 'vit_master_i') {
-                  current = state.attributes.vit;
-                } else if (achievement.id.startsWith('mng_master') || achievement.id === 'mng_master_i') {
-                  current = state.attributes.mng;
-                } else if (achievement.id.startsWith('cre_master') || achievement.id === 'cre_master_i') {
-                  current = state.attributes.cre;
-                } else if (achievement.id === 'guardian_initiate') {
-                  // 任意属性达到 25
-                  current = Math.max(...Object.values(state.attributes));
-                }
-                shouldUnlock = current >= achievement.requirement;
+                // 守护者学徒 - 所有属性达到15（已通过comboRequirement处理）
+                // 大师系列已删除，此分支保留用于未来扩展
                 break;
 
               case 'special':
-                // 金币成就
+                // 传奇富豪 - 累计获得金币
                 if (achievement.id.startsWith('legendary_wealthy')) {
-                  current = state.coins;
+                  // 统计所有earn类型的金币交易总和
+                  const totalEarnedCoins = state.transactions.coins
+                    .filter(t => t.type === 'earn' && !t.revoked)
+                    .reduce((sum, t) => sum + t.amount, 0);
+                  current = totalEarnedCoins;
                   shouldUnlock = current >= achievement.requirement;
+                }
+                // 平衡守护者 - 所有属性达到要求
+                else if (achievement.id === 'guardian_balanced') {
+                  const allAttributesAbove = Object.values(state.attributes).every(
+                    v => v >= achievement.requirement
+                  );
+                  shouldUnlock = allAttributesAbove;
+                }
+                // 和谐守护者 - 所有属性差距小于20
+                else if (achievement.id === 'guardian_harmony') {
+                  const attrValues = Object.values(state.attributes);
+                  const max = Math.max(...attrValues);
+                  const min = Math.min(...attrValues);
+                  shouldUnlock = (max - min) <= 20;
+                }
+                // 完美守护者 - 所有属性达到100
+                else if (achievement.id === 'guardian_perfect') {
+                  shouldUnlock = Object.values(state.attributes).every(v => v >= 100);
+                }
+                // 至高守护者 - 所有属性达到120且差值不超过15
+                else if (achievement.id === 'guardian_ultimate') {
+                  const attrValues = Object.values(state.attributes);
+                  const allAbove120 = attrValues.every(v => v >= 120);
+                  const max = Math.max(...attrValues);
+                  const min = Math.min(...attrValues);
+                  shouldUnlock = allAbove120 && (max - min) <= 15;
+                }
+                // 智慧引领 - INT比其他属性高15-25点，且其他属性不低于70
+                else if (achievement.id === 'guardian_focused_int') {
+                  const { int, vit, mng, cre } = state.attributes;
+                  const otherAttrs = [vit, mng, cre];
+                  const allAbove70 = otherAttrs.every(attr => attr >= 70);
+                  const differences = otherAttrs.map(attr => int - attr);
+                  const inRange = differences.every(diff => diff >= 15 && diff <= 25);
+                  shouldUnlock = allAbove70 && inRange;
+                }
+                // 活力引领 - VIT比其他属性高15-25点，且其他属性不低于70
+                else if (achievement.id === 'guardian_focused_vit') {
+                  const { int, vit, mng, cre } = state.attributes;
+                  const otherAttrs = [int, mng, cre];
+                  const allAbove70 = otherAttrs.every(attr => attr >= 70);
+                  const differences = otherAttrs.map(attr => vit - attr);
+                  const inRange = differences.every(diff => diff >= 15 && diff <= 25);
+                  shouldUnlock = allAbove70 && inRange;
+                }
+                // 管理引领 - MNG比其他属性高15-25点，且其他属性不低于70
+                else if (achievement.id === 'guardian_focused_mng') {
+                  const { int, vit, mng, cre } = state.attributes;
+                  const otherAttrs = [int, vit, cre];
+                  const allAbove70 = otherAttrs.every(attr => attr >= 70);
+                  const differences = otherAttrs.map(attr => mng - attr);
+                  const inRange = differences.every(diff => diff >= 15 && diff <= 25);
+                  shouldUnlock = allAbove70 && inRange;
+                }
+                // 创造引领 - CRE比其他属性高15-25点，且其他属性不低于70
+                else if (achievement.id === 'guardian_focused_cre') {
+                  const { int, vit, mng, cre } = state.attributes;
+                  const otherAttrs = [int, vit, mng];
+                  const allAbove70 = otherAttrs.every(attr => attr >= 70);
+                  const differences = otherAttrs.map(attr => cre - attr);
+                  const inRange = differences.every(diff => diff >= 15 && diff <= 25);
+                  shouldUnlock = allAbove70 && inRange;
+                }
+                // 黄金比例 - 所有属性差值不超过20且最低属性≥60
+                else if (achievement.id === 'guardian_attribute_balance') {
+                  const attrValues = Object.values(state.attributes);
+                  const max = Math.max(...attrValues);
+                  const min = Math.min(...attrValues);
+                  shouldUnlock = (max - min) <= 20 && min >= 60;
+                }
+                // 极限平衡 - 所有属性≥150且差值≤10
+                else if (achievement.id === 'extreme_all_balanced') {
+                  const attrValues = Object.values(state.attributes);
+                  const allAbove150 = attrValues.every(v => v >= 150);
+                  const max = Math.max(...attrValues);
+                  const min = Math.min(...attrValues);
+                  shouldUnlock = allAbove150 && (max - min) <= 10;
+                }
+                // 和谐共生 - 所有属性≥100且差值≤10
+                else if (achievement.id === 'perfect_all_attributes_max') {
+                  const attrValues = Object.values(state.attributes);
+                  const allAbove100 = attrValues.every(v => v >= 100);
+                  const max = Math.max(...attrValues);
+                  const min = Math.min(...attrValues);
+                  shouldUnlock = allAbove100 && (max - min) <= 10;
+                }
+                // 终极传奇 - 等级50+所有属性100且差值≤10+任务500
+                else if (achievement.id === 'legendary_ultimate') {
+                  const attrValues = Object.values(state.attributes);
+                  const allAbove100 = attrValues.every(v => v >= 100);
+                  const max = Math.max(...attrValues);
+                  const min = Math.min(...attrValues);
+                  shouldUnlock = state.level >= 50 &&
+                                 state.stats.totalQuestsCompleted >= 500 &&
+                                 allAbove100 &&
+                                 (max - min) <= 10;
                 }
                 break;
 
@@ -1446,18 +1534,8 @@ export const useGameStore = create<GameStore>()(
                 break;
 
               case 'attribute':
-                if (achievement.id.startsWith('int_master') || achievement.id === 'int_master_i') {
-                  stillMeetsRequirement = state.attributes.int >= achievement.requirement;
-                } else if (achievement.id.startsWith('vit_master') || achievement.id === 'vit_master_i') {
-                  stillMeetsRequirement = state.attributes.vit >= achievement.requirement;
-                } else if (achievement.id.startsWith('mng_master') || achievement.id === 'mng_master_i') {
-                  stillMeetsRequirement = state.attributes.mng >= achievement.requirement;
-                } else if (achievement.id.startsWith('cre_master') || achievement.id === 'cre_master_i') {
-                  stillMeetsRequirement = state.attributes.cre >= achievement.requirement;
-                } else if (achievement.id === 'guardian_initiate') {
-                  const maxAttr = Math.max(...Object.values(state.attributes));
-                  stillMeetsRequirement = maxAttr >= achievement.requirement;
-                }
+                // 守护者学徒 - 已通过comboRequirement处理
+                // 大师系列已删除，此分支保留用于未来扩展
                 break;
 
               case 'special':
