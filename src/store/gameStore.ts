@@ -619,7 +619,7 @@ export const useGameStore = create<GameStore>()(
       addQuest: (questData) => {
         const newQuest: Quest = {
           ...questData,
-          id: Date.now().toString(),
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           status: QuestStatus.ACTIVE,
           createdAt: Date.now(),
         };
@@ -873,7 +873,7 @@ export const useGameStore = create<GameStore>()(
             if (q.id !== questId) return q;
 
             const newSubtask = {
-              id: Date.now().toString(),
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
               title: subtaskTitle,
               completed: false,
               createdAt: Date.now(),
@@ -899,7 +899,7 @@ export const useGameStore = create<GameStore>()(
 
         const newChildQuest: Quest = {
           ...childQuestData,
-          id: Date.now().toString(),
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           status: QuestStatus.ACTIVE,
           createdAt: Date.now(),
           parentId,
@@ -1158,7 +1158,7 @@ export const useGameStore = create<GameStore>()(
        */
       startFocusSession: (mode: 'work' | 'shortBreak' | 'longBreak', duration: number) => {
         const newSession: import('@/types/game').FocusSession = {
-          id: Date.now().toString(),
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           mode,
           startTime: Date.now(),
           plannedDuration: duration,
@@ -2085,7 +2085,7 @@ export const useGameStore = create<GameStore>()(
 
         // 创建使用记录
         const usageRecord: ItemUsageRecord = {
-          id: Date.now().toString(),
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           usedAt: Date.now(),
           note,
         };
@@ -2117,7 +2117,7 @@ export const useGameStore = create<GameStore>()(
        */
       addItemNote: (itemId: string, content: string) => {
         const newNote: ItemNote = {
-          id: Date.now().toString(),
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           content,
           createdAt: Date.now(),
           updatedAt: Date.now(),

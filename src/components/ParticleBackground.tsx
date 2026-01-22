@@ -275,6 +275,19 @@ function ParticleSystem({ count = getOptimalParticleCount(), mode = 'repulsion',
 }
 
 /**
+ * 检测 WebGL 是否可用
+ */
+function isWebGLAvailable(): boolean {
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    return gl !== null && gl !== undefined;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
  * 导出的粒子背景组件
  */
 export default function ParticleBackground() {
@@ -283,8 +296,14 @@ export default function ParticleBackground() {
   const particleDimension = useGameStore((state) => state.settings.particleDimension);
   const particleDistribution = useGameStore((state) => state.settings.particleDistribution);
 
-  // 根据维度选择渲染2D或3D粒子系统
-  if (particleDimension === '2d') {
+  // 检测 WebGL 支持（仅在客户端执行）
+  const webGLSupported = useMemo(() => {
+    if (typeof window === 'undefined') return true; // SSR 时假设支持
+    return isWebGLAvailable();
+  }, []);
+
+  // 如果选择2D或WebGL不可用，使用2D粒子系统
+  if (particleDimension === '2d' || !webGLSupported) {
     return (
       <Particle2DSystem
         count={10000}
