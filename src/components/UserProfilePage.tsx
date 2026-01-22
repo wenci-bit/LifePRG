@@ -11,15 +11,44 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Mail, Edit2, Save, X, LogOut, Trash2, Users, Camera, Sparkles,
   TrendingUp, Zap, Coins, Target, Flame, Trophy, Star, Calendar,
-  CheckCircle2, Clock, Award
+  CheckCircle2, Clock, Award, AlertTriangle, Check
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
 import { useGameStore } from '@/store/gameStore';
 import AvatarSelector from './AvatarSelector';
 import AvatarFrameSelector from './AvatarFrameSelector';
 import AvatarDisplay from './AvatarDisplay';
-import type { UserAvatar } from '@/types/game';
+import type { UserAvatar, UserRole, GrowthGoal, TaskIntensity } from '@/types/game';
 import { QuestStatus } from '@/types/game';
+
+// 预设身份选项
+const ROLE_OPTIONS: Array<{ value: UserRole; label: string; icon: string }> = [
+  { value: 'student', label: '学生', icon: '🎓' },
+  { value: 'worker', label: '职场人', icon: '💼' },
+  { value: 'freelancer', label: '自由职业', icon: '🎨' },
+  { value: 'entrepreneur', label: '创业者', icon: '🚀' },
+  { value: 'researcher', label: '研究者', icon: '🔬' },
+  { value: 'other', label: '其他', icon: '✨' },
+];
+
+// 预设成长需求选项
+const GROWTH_GOAL_OPTIONS: Array<{ value: GrowthGoal; label: string; icon: string }> = [
+  { value: 'academic', label: '学术提升', icon: '📚' },
+  { value: 'career', label: '职业发展', icon: '💼' },
+  { value: 'health', label: '健康管理', icon: '💪' },
+  { value: 'skill', label: '技能学习', icon: '🎯' },
+  { value: 'creativity', label: '创意表达', icon: '🎨' },
+  { value: 'social', label: '社交拓展', icon: '👥' },
+  { value: 'finance', label: '财务规划', icon: '💰' },
+  { value: 'hobby', label: '兴趣爱好', icon: '🎮' },
+];
+
+// 任务强度选项
+const INTENSITY_OPTIONS: Array<{ value: TaskIntensity; label: string; icon: string; description: string }> = [
+  { value: 'light', label: '轻松模式', icon: '🌱', description: '每天2-3个任务' },
+  { value: 'moderate', label: '平衡模式', icon: '⚖️', description: '每天4-6个任务' },
+  { value: 'intense', label: '挑战模式', icon: '🔥', description: '每天7+个任务' },
+];
 
 export default function UserProfilePage() {
   const { currentUser, updateProfile, logout, deleteAccount, users, switchUser } = useUserStore();
@@ -41,6 +70,15 @@ export default function UserProfilePage() {
   const [nickname, setNickname] = useState(currentUser?.nickname || '');
   const [email, setEmail] = useState(currentUser?.email || '');
   const [bio, setBio] = useState(currentUser?.bio || '');
+
+  // 身份目标编辑状态
+  const [isEditingGoals, setIsEditingGoals] = useState(false);
+  const [editRole, setEditRole] = useState<UserRole>(currentUser?.onboarding?.role || 'other');
+  const [editCustomRole, setEditCustomRole] = useState(currentUser?.onboarding?.customRole || '');
+  const [editGoals, setEditGoals] = useState<GrowthGoal[]>(currentUser?.onboarding?.growthGoals || []);
+  const [editCustomGoals, setEditCustomGoals] = useState<string[]>(currentUser?.onboarding?.customGoals || []);
+  const [editCustomGoalInput, setEditCustomGoalInput] = useState('');
+  const [editIntensity, setEditIntensity] = useState<TaskIntensity>(currentUser?.onboarding?.taskIntensity || 'moderate');
 
   if (!currentUser) return null;
 
@@ -84,6 +122,64 @@ export default function UserProfilePage() {
     setEmail(currentUser.email || '');
     setBio(currentUser.bio || '');
     setIsEditing(false);
+  };
+
+  // 开始编辑身份目标
+  const handleStartEditGoals = () => {
+    setEditRole(currentUser?.onboarding?.role || 'other');
+    setEditCustomRole(currentUser?.onboarding?.customRole || '');
+    setEditGoals(currentUser?.onboarding?.growthGoals || []);
+    setEditCustomGoals(currentUser?.onboarding?.customGoals || []);
+    setEditIntensity(currentUser?.onboarding?.taskIntensity || 'moderate');
+    setIsEditingGoals(true);
+  };
+
+  // 保存身份目标
+  const handleSaveGoals = () => {
+    updateProfile({
+      onboarding: {
+        completed: true,
+        role: editRole,
+        customRole: editRole === 'other' ? editCustomRole : undefined,
+        growthGoals: editGoals,
+        customGoals: editCustomGoals,
+        taskIntensity: editIntensity,
+        preferences: {
+          dailyTaskCount: editIntensity === 'light' ? 3 : editIntensity === 'moderate' ? 5 : 8,
+          focusAreas: [...editGoals, ...editCustomGoals],
+        },
+      },
+    });
+    setIsEditingGoals(false);
+    alert('身份目标已更新！');
+  };
+
+  // 取消编辑身份目标
+  const handleCancelEditGoals = () => {
+    setIsEditingGoals(false);
+  };
+
+  // 切换成长目标
+  const toggleEditGoal = (goal: GrowthGoal) => {
+    if (editGoals.includes(goal)) {
+      setEditGoals(editGoals.filter(g => g !== goal));
+    } else {
+      setEditGoals([...editGoals, goal]);
+    }
+  };
+
+  // 添加自定义目标
+  const addEditCustomGoal = () => {
+    const trimmed = editCustomGoalInput.trim();
+    if (trimmed && !editCustomGoals.includes(trimmed)) {
+      setEditCustomGoals([...editCustomGoals, trimmed]);
+      setEditCustomGoalInput('');
+    }
+  };
+
+  // 删除自定义目标
+  const removeEditCustomGoal = (goal: string) => {
+    setEditCustomGoals(editCustomGoals.filter(g => g !== goal));
   };
 
   // 删除账户
@@ -605,6 +701,258 @@ export default function UserProfilePage() {
             </div>
           </div>
         </div>
+      </motion.div>
+
+      {/* 身份与成长目标 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.22 }}
+        className="glass-card p-8 rounded-2xl"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Target className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">身份与成长目标</h3>
+          </div>
+          {!isEditingGoals && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleStartEditGoals}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-600 dark:text-purple-400 rounded-lg transition-all border border-purple-500/30 font-medium"
+            >
+              <Edit2 className="w-4 h-4" />
+              编辑
+            </motion.button>
+          )}
+        </div>
+
+        {/* 警告提示 */}
+        <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">不建议频繁调整</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400/80 mt-1">
+                身份和成长目标会影响 AI 为你推荐的任务类型。频繁修改可能导致任务建议不够精准，建议在确定方向后再进行调整。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {!isEditingGoals ? (
+          /* 显示模式 */
+          <div className="space-y-4">
+            {/* 当前身份 */}
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs text-gray-600 dark:text-white/60 font-medium">当前身份</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">
+                  {ROLE_OPTIONS.find(r => r.value === currentUser?.onboarding?.role)?.icon || '✨'}
+                </span>
+                <span className="text-lg text-gray-900 dark:text-white font-medium">
+                  {currentUser?.onboarding?.role === 'other'
+                    ? currentUser?.onboarding?.customRole || '未设置'
+                    : ROLE_OPTIONS.find(r => r.value === currentUser?.onboarding?.role)?.label || '未设置'}
+                </span>
+              </div>
+            </div>
+
+            {/* 成长目标 */}
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs text-gray-600 dark:text-white/60 font-medium">成长目标</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(currentUser?.onboarding?.growthGoals || []).map((goal) => {
+                  const option = GROWTH_GOAL_OPTIONS.find(g => g.value === goal);
+                  return (
+                    <span key={goal} className="px-3 py-1.5 bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 rounded-lg text-sm font-medium flex items-center gap-1.5">
+                      <span>{option?.icon}</span>
+                      {option?.label}
+                    </span>
+                  );
+                })}
+                {(currentUser?.onboarding?.customGoals || []).map((goal) => (
+                  <span key={goal} className="px-3 py-1.5 bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 rounded-lg text-sm font-medium">
+                    {goal}
+                  </span>
+                ))}
+                {(!currentUser?.onboarding?.growthGoals?.length && !currentUser?.onboarding?.customGoals?.length) && (
+                  <span className="text-gray-500 dark:text-white/50">未设置成长目标</span>
+                )}
+              </div>
+            </div>
+
+            {/* 任务强度 */}
+            <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs text-gray-600 dark:text-white/60 font-medium">任务强度</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">
+                  {INTENSITY_OPTIONS.find(i => i.value === currentUser?.onboarding?.taskIntensity)?.icon || '⚖️'}
+                </span>
+                <div>
+                  <span className="text-lg text-gray-900 dark:text-white font-medium">
+                    {INTENSITY_OPTIONS.find(i => i.value === currentUser?.onboarding?.taskIntensity)?.label || '平衡模式'}
+                  </span>
+                  <span className="text-gray-500 dark:text-white/50 text-sm ml-2">
+                    ({INTENSITY_OPTIONS.find(i => i.value === currentUser?.onboarding?.taskIntensity)?.description || '每天4-6个任务'})
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* 编辑模式 */
+          <div className="space-y-6">
+            {/* 编辑身份 */}
+            <div>
+              <h4 className="text-sm font-bold text-gray-700 dark:text-white/80 mb-3">选择身份</h4>
+              <div className="grid grid-cols-3 gap-2">
+                {ROLE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setEditRole(option.value)}
+                    className={`p-3 rounded-xl border-2 transition-all ${
+                      editRole === option.value
+                        ? 'border-purple-500 bg-purple-500/20'
+                        : 'border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-white/5 hover:border-gray-300 dark:hover:border-white/40'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <span className="text-2xl block mb-1">{option.icon}</span>
+                      <span className="text-xs text-gray-900 dark:text-white font-medium">{option.label}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {editRole === 'other' && (
+                <input
+                  type="text"
+                  value={editCustomRole}
+                  onChange={(e) => setEditCustomRole(e.target.value)}
+                  placeholder="请输入你的身份..."
+                  className="w-full mt-3 px-4 py-2 bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:outline-none focus:border-purple-500"
+                />
+              )}
+            </div>
+
+            {/* 编辑成长目标 */}
+            <div>
+              <h4 className="text-sm font-bold text-gray-700 dark:text-white/80 mb-3">成长目标（可多选）</h4>
+              <div className="grid grid-cols-4 gap-2">
+                {GROWTH_GOAL_OPTIONS.map((option) => {
+                  const isSelected = editGoals.includes(option.value);
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => toggleEditGoal(option.value)}
+                      className={`p-3 rounded-xl border-2 transition-all ${
+                        isSelected
+                          ? 'border-cyan-500 bg-cyan-500/20'
+                          : 'border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-white/5 hover:border-gray-300 dark:hover:border-white/40'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <span className="text-xl block mb-1">{option.icon}</span>
+                        <span className="text-xs text-gray-900 dark:text-white font-medium">{option.label}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 自定义目标 */}
+              <div className="mt-3 space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editCustomGoalInput}
+                    onChange={(e) => setEditCustomGoalInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addEditCustomGoal()}
+                    placeholder="添加自定义目标..."
+                    className="flex-1 px-4 py-2 bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:outline-none focus:border-cyan-500 text-sm"
+                  />
+                  <button
+                    onClick={addEditCustomGoal}
+                    className="px-4 py-2 bg-cyan-100 dark:bg-cyan-500/20 hover:bg-cyan-200 dark:hover:bg-cyan-500/30 text-cyan-700 dark:text-cyan-400 rounded-lg transition-all text-sm font-medium"
+                  >
+                    添加
+                  </button>
+                </div>
+                {editCustomGoals.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {editCustomGoals.map((goal) => (
+                      <div
+                        key={goal}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-500/20 rounded-lg border border-purple-200 dark:border-purple-500/30"
+                      >
+                        <span className="text-sm text-purple-700 dark:text-purple-300">{goal}</span>
+                        <button
+                          onClick={() => removeEditCustomGoal(goal)}
+                          className="text-purple-400 hover:text-red-500 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 编辑任务强度 */}
+            <div>
+              <h4 className="text-sm font-bold text-gray-700 dark:text-white/80 mb-3">任务强度</h4>
+              <div className="grid grid-cols-3 gap-3">
+                {INTENSITY_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setEditIntensity(option.value)}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      editIntensity === option.value
+                        ? 'border-green-500 bg-green-500/20'
+                        : 'border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-white/5 hover:border-gray-300 dark:hover:border-white/40'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <span className="text-3xl block mb-2">{option.icon}</span>
+                      <span className="text-sm text-gray-900 dark:text-white font-bold block">{option.label}</span>
+                      <span className="text-xs text-gray-500 dark:text-white/60">{option.description}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 操作按钮 */}
+            <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-white/10">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSaveGoals}
+                className="flex-1 px-6 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-bold flex items-center justify-center gap-2"
+              >
+                <Check className="w-5 h-5" />
+                保存设置
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleCancelEditGoals}
+                className="px-6 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-white font-medium flex items-center justify-center gap-2"
+              >
+                <X className="w-5 h-5" />
+                取消
+              </motion.button>
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* 账户管理 */}
