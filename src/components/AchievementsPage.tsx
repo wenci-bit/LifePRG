@@ -206,7 +206,7 @@ export default function AchievementsPage() {
       </motion.div>
 
       {/* 按系列显示成就 */}
-      {(['scholar', 'warrior', 'guardian', 'explorer', 'master', 'legendary', 'merchant', 'timemaster', 'collector', 'perfectionist', 'digitartist', 'extreme', 'habit', 'event', 'speed'] as AchievementSeries[]).map((series) => {
+      {(['scholar', 'warrior', 'explorer', 'legendary', 'merchant', 'timemaster', 'collector', 'perfectionist', 'digitartist', 'extreme', 'habit', 'event', 'speed'] as AchievementSeries[]).map((series) => {
         const achievements = achievementsBySeries[series];
         if (achievements.length === 0) return null;
 
