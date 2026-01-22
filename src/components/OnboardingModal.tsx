@@ -74,9 +74,10 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
 
   const handleNext = async () => {
     if (step === 3) {
-      // 在第3步完成后，自动触发AI生成
-      await generateAITasksAndHabits();
+      // 在第3步完成后，先跳转到第4步，然后触发AI生成
       setStep(step + 1);
+      // 立即开始AI生成
+      await generateAITasksAndHabits();
     } else if (step < totalSteps) {
       setStep(step + 1);
     } else {
@@ -748,7 +749,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
           >
             {step === totalSteps ? '完成设置' : step === 3 ? '生成任务' : '下一步'}
             {step < 3 && <ChevronRight className="w-5 h-5" />}
-            {step === 3 && <Sparkles className="w-5 h-5" />}
+            {step === 3 && <Sparkles className="w-5 h-5 animate-pulse" />}
           </button>
         </div>
       </motion.div>
