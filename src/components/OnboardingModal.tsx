@@ -267,7 +267,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
     if (step === 1) return selectedRole !== null && (selectedRole !== 'other' || customRole.trim().length > 0);
     if (step === 2) return selectedGoals.length > 0 || customGoals.length > 0;
     if (step === 3) return true;
-    if (step === 4) return !aiLoading && generatedTasks.length > 0;
+    if (step === 4) return !aiLoading; // 只要不在加载中就可以继续，即使AI失败也能完成
     return false;
   };
 
@@ -548,14 +548,22 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
 
               {/* 错误状态 */}
               {aiError && !aiLoading && (
-                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-                  <p className="text-red-400 text-sm">{aiError}</p>
-                  <button
-                    onClick={generateAITasksAndHabits}
-                    className="mt-3 px-4 py-2 bg-cyber-cyan/20 hover:bg-cyber-cyan/30 text-cyber-cyan rounded-lg transition-all text-sm"
-                  >
-                    重新生成
-                  </button>
+                <div className="space-y-4">
+                  <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                    <p className="text-red-400 text-sm mb-3">{aiError}</p>
+                    <button
+                      onClick={generateAITasksAndHabits}
+                      className="px-4 py-2 bg-cyber-cyan/20 hover:bg-cyber-cyan/30 text-cyber-cyan rounded-lg transition-all text-sm"
+                    >
+                      重新生成
+                    </button>
+                  </div>
+
+                  <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <p className="text-yellow-400 text-sm">
+                      💡 AI 生成失败不影响注册，你可以点击"完成设置"继续，稍后在主页手动创建任务。
+                    </p>
+                  </div>
                 </div>
               )}
 

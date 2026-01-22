@@ -46,7 +46,7 @@ export const API_ENDPOINTS = {
 };
 
 // 默认配置
-const DEFAULT_API_KEY = 'sk-f10bb23f3510481ba6ddec8ed5cb5d8f';
+const DEFAULT_API_KEY = 'sk-dc471156fca24fd3a63eb16f6c597f93';
 const DEFAULT_PROVIDER = AIProvider.DEEPSEEK;
 const DEFAULT_MODEL = 'deepseek-chat';
 const DEFAULT_TEMPERATURE = 0.7;
