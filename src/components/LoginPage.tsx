@@ -69,7 +69,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
   // 完成引导设置
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
-    alert('设置完成！欢迎加入 LifeRPG！');
+    // 不需要alert，直接进入主页
     onSuccess();
   };
 

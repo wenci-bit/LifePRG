@@ -149,8 +149,8 @@ export default function Home() {
 
   // 登录成功后的处理
   const handleLoginSuccess = () => {
-    // 刷新页面以加载用户数据
-    window.location.reload();
+    // 不刷新页面，让引导流程自然完成
+    // 用户数据会通过 zustand 自动同步
   };
 
   // 如果未登录，显示登录页面
