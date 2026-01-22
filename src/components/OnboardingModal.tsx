@@ -7,9 +7,11 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Check, Sparkles } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, Sparkles, Loader2, Zap } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
-import type { UserRole, GrowthGoal, TaskIntensity } from '@/types/game';
+import { useGameStore } from '@/store/gameStore';
+import { generateDailyTaskSuggestions, type AITaskSuggestion } from '@/services/aiService';
+import type { UserRole, GrowthGoal, TaskIntensity, HabitType } from '@/types/game';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -47,6 +49,10 @@ const INTENSITY_OPTIONS: Array<{ value: TaskIntensity; label: string; icon: stri
 
 export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalProps) {
   const updateProfile = useUserStore((state) => state.updateProfile);
+  const currentUser = useUserStore((state) => state.currentUser);
+  const addQuest = useGameStore((state) => state.addQuest);
+  const addHabit = useGameStore((state) => state.addHabit);
+  const gameState = useGameStore((state) => state);
 
   const [step, setStep] = useState(1);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
@@ -56,10 +62,20 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
   const [customGoalInput, setCustomGoalInput] = useState('');
   const [selectedIntensity, setSelectedIntensity] = useState<TaskIntensity>('moderate');
 
-  const totalSteps = 3;
+  // AI生成状态
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [generatedTasks, setGeneratedTasks] = useState<AITaskSuggestion[]>([]);
+  const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
 
-  const handleNext = () => {
-    if (step < totalSteps) {
+  const totalSteps = 4; // 增加一个步骤用于AI生成
+
+  const handleNext = async () => {
+    if (step === 3) {
+      // 在第3步完成后，自动触发AI生成
+      await generateAITasksAndHabits();
+      setStep(step + 1);
+    } else if (step < totalSteps) {
       setStep(step + 1);
     } else {
       handleComplete();
@@ -69,6 +85,43 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
+    }
+  };
+
+  // AI生成任务和习惯
+  const generateAITasksAndHabits = async () => {
+    setAiLoading(true);
+    setAiError(null);
+
+    try {
+      const onboardingData = {
+        role: selectedRole || 'other',
+        customRole: selectedRole === 'other' ? customRole : undefined,
+        growthGoals: selectedGoals,
+        customGoals,
+        taskIntensity: selectedIntensity,
+        preferences: {
+          dailyTaskCount: selectedIntensity === 'light' ? 3 : selectedIntensity === 'moderate' ? 5 : 8,
+          focusAreas: [...selectedGoals, ...customGoals],
+        },
+      };
+
+      const userStats = {
+        level: gameState.level,
+        totalQuestsCompleted: gameState.stats.totalQuestsCompleted,
+        attributes: gameState.attributes,
+      };
+
+      const tasks = await generateDailyTaskSuggestions(onboardingData, userStats);
+      setGeneratedTasks(tasks);
+
+      // 默认全选
+      setSelectedTasks(new Set(tasks.map((_, index) => index)));
+    } catch (error) {
+      console.error('AI生成失败:', error);
+      setAiError(error instanceof Error ? error.message : '生成失败，请重试');
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -88,7 +141,110 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
         },
       },
     });
+
+    // 添加选中的任务
+    selectedTasks.forEach((index) => {
+      const task = generatedTasks[index];
+      if (task) {
+        const expReward = task.type === 'main' ? 70 : task.type === 'side' ? 35 : 15;
+        const coinReward = task.type === 'main' ? 40 : task.type === 'side' ? 20 : 10;
+
+        addQuest({
+          title: task.title,
+          description: task.description,
+          type: task.type as any,
+          attributes: task.attributes as any[],
+          expReward,
+          coinReward,
+          estimatedDuration: task.estimatedDuration,
+          priority: task.priority,
+          tags: task.tags,
+        });
+      }
+    });
+
+    // 根据成长目标自动创建习惯
+    createDefaultHabits();
+
     onComplete();
+  };
+
+  // 创建默认习惯
+  const createDefaultHabits = () => {
+    const habitTemplates: Record<GrowthGoal, { name: string; icon: string; color: string; type: HabitType; targetValue?: number; unit?: string }> = {
+      academic: { name: '学习打卡', icon: '📚', color: '#3b82f6', type: 'duration' as HabitType, targetValue: 60, unit: '分钟' },
+      career: { name: '技能提升', icon: '💼', color: '#8b5cf6', type: 'boolean' as HabitType },
+      health: { name: '运动打卡', icon: '💪', color: '#10b981', type: 'duration' as HabitType, targetValue: 30, unit: '分钟' },
+      skill: { name: '练习技能', icon: '🎯', color: '#f59e0b', type: 'boolean' as HabitType },
+      creativity: { name: '创作时间', icon: '🎨', color: '#ec4899', type: 'duration' as HabitType, targetValue: 30, unit: '分钟' },
+      social: { name: '社交互动', icon: '👥', color: '#6366f1', type: 'boolean' as HabitType },
+      finance: { name: '记账理财', icon: '💰', color: '#eab308', type: 'boolean' as HabitType },
+      hobby: { name: '兴趣爱好', icon: '🎮', color: '#a855f7', type: 'boolean' as HabitType },
+    };
+
+    // 为每个选中的成长目标创建对应的习惯
+    selectedGoals.forEach((goal) => {
+      const template = habitTemplates[goal];
+      if (template) {
+        addHabit({
+          name: template.name,
+          icon: template.icon,
+          color: template.color,
+          type: template.type,
+          status: 'active' as any,
+          targetValue: template.targetValue,
+          unit: template.unit,
+          repeatPattern: {
+            type: 'daily',
+          },
+          attributes: [],
+          expReward: 10,
+          coinReward: 5,
+          stats: {
+            totalCheckIns: 0,
+            currentStreak: 0,
+            longestStreak: 0,
+            completionRate: 0,
+            lastCheckInDate: undefined,
+          },
+        });
+      }
+    });
+
+    // 添加通用的每日习惯
+    addHabit({
+      name: '喝水打卡',
+      icon: '💧',
+      color: '#06b6d4',
+      type: 'numeric' as HabitType,
+      status: 'active' as any,
+      targetValue: 8,
+      unit: '杯',
+      repeatPattern: {
+        type: 'daily',
+      },
+      attributes: ['vit' as any],
+      expReward: 5,
+      coinReward: 3,
+      stats: {
+        totalCheckIns: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        completionRate: 0,
+        lastCheckInDate: undefined,
+      },
+    });
+  };
+
+  // 切换任务选择
+  const toggleTask = (index: number) => {
+    const newSelected = new Set(selectedTasks);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedTasks(newSelected);
   };
 
   const toggleGoal = (goal: GrowthGoal) => {
@@ -115,7 +271,31 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
     if (step === 1) return selectedRole !== null && (selectedRole !== 'other' || customRole.trim().length > 0);
     if (step === 2) return selectedGoals.length > 0 || customGoals.length > 0;
     if (step === 3) return true;
+    if (step === 4) return !aiLoading && generatedTasks.length > 0;
     return false;
+  };
+
+  // 获取任务类型样式
+  const getTypeStyle = (type: string) => {
+    switch (type) {
+      case 'main':
+        return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white';
+      case 'side':
+        return 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white';
+      case 'daily':
+        return 'bg-gradient-to-r from-green-500 to-emerald-500 text-white';
+      default:
+        return 'bg-white/20 text-white';
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'main': return '主线';
+      case 'side': return '支线';
+      case 'daily': return '日常';
+      default: return type;
+    }
   };
 
   if (!isOpen) return null;
@@ -147,7 +327,7 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
 
         {/* 进度指示器 */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div
               key={s}
               className={`h-2 rounded-full transition-all duration-300 ${
@@ -344,6 +524,135 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
               </div>
             </motion.div>
           )}
+
+          {/* 步骤4: AI生成任务和习惯 */}
+          {step === 4 && (
+            <motion.div
+              key="step4"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold text-white mb-2 flex items-center justify-center gap-2">
+                  <Zap className="w-6 h-6 text-cyber-cyan" />
+                  AI 为你推荐任务
+                </h3>
+                <p className="text-white/60 text-sm">根据你的目标和偏好，AI已为你生成专属任务和习惯</p>
+              </div>
+
+              {/* 加载状态 */}
+              {aiLoading && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="w-12 h-12 text-cyber-cyan animate-spin mb-4" />
+                  <p className="text-white/60">AI 正在为你生成任务...</p>
+                </div>
+              )}
+
+              {/* 错误状态 */}
+              {aiError && !aiLoading && (
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <p className="text-red-400 text-sm">{aiError}</p>
+                  <button
+                    onClick={generateAITasksAndHabits}
+                    className="mt-3 px-4 py-2 bg-cyber-cyan/20 hover:bg-cyber-cyan/30 text-cyber-cyan rounded-lg transition-all text-sm"
+                  >
+                    重新生成
+                  </button>
+                </div>
+              )}
+
+              {/* 任务列表 */}
+              {!aiLoading && !aiError && generatedTasks.length > 0 && (
+                <>
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                    {generatedTasks.map((task, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        onClick={() => toggleTask(index)}
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          selectedTasks.has(index)
+                            ? 'border-cyber-cyan bg-cyber-cyan/10 shadow-[0_0_15px_rgba(0,243,255,0.2)]'
+                            : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* 选择框 */}
+                          <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-1 transition-all ${
+                            selectedTasks.has(index)
+                              ? 'bg-cyber-cyan border-cyber-cyan'
+                              : 'border-white/40'
+                          }`}>
+                            {selectedTasks.has(index) && (
+                              <Check className="w-3 h-3 text-white" />
+                            )}
+                          </div>
+
+                          {/* 任务内容 */}
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <h4 className="text-base font-bold text-white">{task.title}</h4>
+                              <span className={`px-2 py-1 rounded-lg text-xs font-bold flex-shrink-0 ${getTypeStyle(task.type)}`}>
+                                {getTypeLabel(task.type)}
+                              </span>
+                            </div>
+
+                            {task.description && (
+                              <p className="text-sm text-white/70 mb-2">{task.description}</p>
+                            )}
+
+                            {/* 元信息 */}
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                              {task.attributes.map((attr) => {
+                                const attrLabels: Record<string, string> = {
+                                  int: '智力',
+                                  vit: '活力',
+                                  mng: '管理',
+                                  cre: '创造',
+                                };
+                                const attrColors: Record<string, string> = {
+                                  int: 'text-cyber-cyan',
+                                  vit: 'text-green-400',
+                                  mng: 'text-purple-400',
+                                  cre: 'text-pink-400',
+                                };
+                                return (
+                                  <span key={attr} className={`px-2 py-0.5 rounded ${attrColors[attr]} bg-white/10`}>
+                                    {attrLabels[attr]}
+                                  </span>
+                                );
+                              })}
+                              <span className="text-white/60">⏱️ {task.estimatedDuration}分钟</span>
+                            </div>
+
+                            {/* 推荐理由 */}
+                            {task.reason && (
+                              <div className="mt-2 p-2 bg-white/5 rounded-lg border border-white/10">
+                                <p className="text-xs text-white/70">
+                                  <span className="text-cyber-cyan font-medium">💡 </span>
+                                  {task.reason}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <div className="p-4 bg-gradient-to-r from-cyber-cyan/10 to-cyber-purple/10 border border-cyber-cyan/30 rounded-lg">
+                    <p className="text-xs text-white/70 leading-relaxed">
+                      ✨ <span className="font-bold text-white">已选择 {selectedTasks.size} 个任务</span>，同时会根据你的成长目标自动创建对应的习惯打卡。你可以随时在任务列表中管理它们。
+                    </p>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
         </AnimatePresence>
 
         {/* 按钮 */}
@@ -366,8 +675,9 @@ export default function OnboardingModal({ isOpen, onComplete }: OnboardingModalP
                 : 'bg-white/10 text-white/40 cursor-not-allowed'
             }`}
           >
-            {step === totalSteps ? '完成设置' : '下一步'}
-            {step < totalSteps && <ChevronRight className="w-5 h-5" />}
+            {step === totalSteps ? '完成设置' : step === 3 ? '生成任务' : '下一步'}
+            {step < 3 && <ChevronRight className="w-5 h-5" />}
+            {step === 3 && <Sparkles className="w-5 h-5" />}
           </button>
         </div>
       </motion.div>
