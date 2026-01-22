@@ -20,6 +20,7 @@ import { ACHIEVEMENTS } from '@/data/achievements';
 import { LEVEL_TITLES, getExpBonus, getStreakBonus } from '@/data/levels';
 import { calculateCheckInReward } from '@/data/checkIn';
 import { getDefaultHabit } from '@/data/habits';
+import { cloudData } from '@/services/cloudbase';
 
 // 初始状态
 const initialState = {
@@ -185,8 +186,52 @@ const getCurrentUserId = (): string | null => {
 };
 
 /**
+ * 获取存储模式
+ */
+const getStorageMode = (): 'cloud' | 'local' | 'hybrid' => {
+  try {
+    const userStorage = localStorage.getItem('liferpg-user-storage');
+    if (!userStorage) return 'hybrid';
+    const userData = JSON.parse(userStorage);
+    return userData?.state?.storageMode || 'hybrid';
+  } catch {
+    return 'hybrid';
+  }
+};
+
+/**
+ * 云端同步防抖计时器
+ */
+let cloudSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * 同步数据到云端（防抖处理）
+ */
+const syncToCloud = (userId: string, data: any) => {
+  const mode = getStorageMode();
+  if (mode === 'local') return;
+
+  // 防抖：500ms 内的多次写入只执行最后一次
+  if (cloudSyncTimer) {
+    clearTimeout(cloudSyncTimer);
+  }
+
+  cloudSyncTimer = setTimeout(() => {
+    cloudData.saveGameData(userId, data).then((result) => {
+      if (result.success) {
+        console.log('游戏数据已同步到云端');
+      } else {
+        console.warn('云端同步失败:', result.error);
+      }
+    }).catch((error) => {
+      console.warn('云端同步异常:', error);
+    });
+  }, 500);
+};
+
+/**
  * 创建用户专属的 Storage 适配器
- * 每个用户的游戏数据独立存储
+ * 每个用户的游戏数据独立存储，支持云端同步
  */
 const createUserStorage = () => {
   return {
@@ -199,7 +244,19 @@ const createUserStorage = () => {
     setItem: (name: string, value: string) => {
       const userId = getCurrentUserId();
       const key = userId ? `${name}-${userId}` : name;
+
+      // 保存到本地
       localStorage.setItem(key, value);
+
+      // 异步同步到云端
+      if (userId) {
+        try {
+          const parsedData = JSON.parse(value);
+          syncToCloud(userId, parsedData.state);
+        } catch (e) {
+          // 解析失败时不同步
+        }
+      }
     },
     removeItem: (name: string) => {
       const userId = getCurrentUserId();
