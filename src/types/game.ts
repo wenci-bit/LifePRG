@@ -501,6 +501,29 @@ export type UserAvatar =
   | { type: 'url'; data: string }   // 自定义URL头像
   | { type: 'upload'; data: string }; // 上传的头像（Base64或URL）
 
+// 用户身份类型
+export type UserRole = 'student' | 'worker' | 'freelancer' | 'entrepreneur' | 'researcher' | 'other';
+
+// 成长需求类型
+export type GrowthGoal = 'academic' | 'career' | 'health' | 'skill' | 'creativity' | 'social' | 'finance' | 'hobby';
+
+// 任务强度偏好
+export type TaskIntensity = 'light' | 'moderate' | 'intense';
+
+// 用户引导配置
+export interface UserOnboarding {
+  completed: boolean; // 是否完成引导
+  role?: UserRole; // 用户身份
+  customRole?: string; // 自定义身份
+  growthGoals: GrowthGoal[]; // 成长需求（可多选）
+  customGoals: string[]; // 自定义成长需求
+  taskIntensity: TaskIntensity; // 任务强度偏好
+  preferences?: {
+    dailyTaskCount?: number; // 每日建议任务数
+    focusAreas?: string[]; // 重点关注领域
+  };
+}
+
 // 用户接口
 export interface User {
   id: string; // 用户唯一标识
@@ -511,6 +534,7 @@ export interface User {
   nickname?: string; // 昵称（可选）
   bio?: string; // 个人简介（可选）
   theme?: 'dark' | 'light'; // 主题偏好（可选）
+  onboarding?: UserOnboarding; // 用户引导配置
   createdAt: number; // 创建时间
   lastLoginAt: number; // 最后登录时间
 }

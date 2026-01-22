@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Mail, Lock, LogIn, UserPlus, X } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
+import OnboardingModal from './OnboardingModal';
 
 interface LoginPageProps {
   onSuccess: () => void;
@@ -20,6 +21,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [email, setEmail] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const { login, register } = useUserStore();
 
@@ -59,9 +61,16 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
 
     const success = register(username, password, email);
     if (success) {
-      alert('注册成功！欢迎加入 LifeRPG！');
-      onSuccess();
+      // 注册成功后显示引导设置
+      setShowOnboarding(true);
     }
+  };
+
+  // 完成引导设置
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    alert('设置完成！欢迎加入 LifeRPG！');
+    onSuccess();
   };
 
   // 切换模式
@@ -74,12 +83,16 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md"
-      >
+    <>
+      {/* 引导设置模态框 */}
+      <OnboardingModal isOpen={showOnboarding} onComplete={handleOnboardingComplete} />
+
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md"
+        >
         {/* 卡片容器 */}
         <div className="glass-panel p-8 rounded-2xl border border-white/10">
           {/* Logo 和标题 */}
@@ -229,5 +242,6 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
         </div>
       </motion.div>
     </div>
+    </>
   );
 }

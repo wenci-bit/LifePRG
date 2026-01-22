@@ -94,9 +94,7 @@ export default function AchievementsPage() {
   const achievementsBySeries: Record<AchievementSeries, typeof achievementsWithProgress> = {
     scholar: [],
     warrior: [],
-    guardian: [],
     explorer: [],
-    master: [],
     legendary: [],
     merchant: [],
     timemaster: [],

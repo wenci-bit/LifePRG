@@ -8,19 +8,17 @@ export type AchievementTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamo
 export type AchievementSeries =
   | 'scholar'      // 学者系列
   | 'warrior'      // 战士系列
-  | 'guardian'     // 守护者系列
   | 'explorer'     // 探索者系列
-  | 'master'       // 大师系列
   | 'legendary'    // 传奇系列
-  | 'merchant'     // 商人系列（新）
-  | 'timemaster'   // 时间大师系列（新）
-  | 'collector'    // 收藏家系列（新）
-  | 'perfectionist' // 完美主义系列（新）
-  | 'digitartist'  // 数字艺术家系列（新）
-  | 'extreme'      // 极限挑战系列（新）
-  | 'habit'        // 习惯养成系列（新）
-  | 'event'        // 特殊事件系列（新）
-  | 'speed'        // 速度与激情系列（新）
+  | 'merchant'     // 商人系列
+  | 'timemaster'   // 时间大师系列
+  | 'collector'    // 收藏家系列
+  | 'perfectionist' // 完美主义系列
+  | 'digitartist'  // 数字艺术家系列
+  | 'extreme'      // 极限挑战系列
+  | 'habit'        // 习惯养成系列
+  | 'event'        // 特殊事件系列
+  | 'speed'        // 速度与激情系列
   | 'none';
 
 export interface AchievementData {
@@ -2043,23 +2041,11 @@ export const SERIES_INFO = {
     icon: 'Sword',
     color: { from: '#ef4444', to: '#dc2626' }
   },
-  guardian: {
-    name: '守护者系列',
-    description: '追求平衡发展，和谐共生',
-    icon: 'Shield',
-    color: { from: '#10b981', to: '#059669' }
-  },
   explorer: {
     name: '探索者系列',
     description: '通过等级提升探索世界',
     icon: 'Compass',
     color: { from: '#f59e0b', to: '#d97706' }
-  },
-  master: {
-    name: '大师系列',
-    description: '在保持平衡的基础上追求卓越',
-    icon: 'Award',
-    color: { from: '#8b5cf6', to: '#7c3aed' }
   },
   legendary: {
     name: '传奇系列',

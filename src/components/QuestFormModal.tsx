@@ -7,12 +7,13 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, Check } from 'lucide-react';
+import { X, Plus, Trash2, Check, Sparkles, Loader2 } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import type { Quest, AttributeType, QuestType, SubTask } from '@/types/game';
 import { QUEST_COLORS, COMMON_TAGS, PRIORITY_CONFIG, getDefaultQuestColor, getTagConfig } from '@/data/questConfig';
 import { QUEST_ICONS, QUEST_ICON_CATEGORIES, DEFAULT_QUEST_ICON, type QuestIconOption } from '@/data/questIcons';
 import { formatLocalDate, formatTime } from '@/utils/dateUtils';
+import { generateTaskReward } from '@/services/aiService';
 
 interface Props {
   isOpen: boolean;
@@ -59,9 +60,41 @@ export default function QuestFormModal({ isOpen, onClose, editQuest, initialPare
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [iconCategory, setIconCategory] = useState<string>('work');
   const [parentId, setParentId] = useState<string>('');
+  const [aiRewardLoading, setAiRewardLoading] = useState(false);
 
   // 获取所有可以作为父任务的任务（没有 parentId 的任务，且不是当前编辑的任务）
   const availableParentQuests = quests.filter(q => !q.parentId && q.id !== editQuest?.id);
+
+  // AI自动设定奖励
+  const handleAIReward = async () => {
+    if (!title.trim()) {
+      alert('请先输入任务标题');
+      return;
+    }
+
+    setAiRewardLoading(true);
+    try {
+      const reward = await generateTaskReward(
+        title,
+        description,
+        type,
+        attributes
+      );
+
+      setExpReward(reward.expReward);
+      setCoinReward(reward.coinReward);
+
+      // 显示AI的推理过程
+      if (reward.reasoning) {
+        alert(`AI 奖励设定完成！\n\n${reward.reasoning}`);
+      }
+    } catch (error) {
+      console.error('AI奖励设定失败:', error);
+      alert('AI奖励设定失败，请手动设置或重试');
+    } finally {
+      setAiRewardLoading(false);
+    }
+  };
 
   // 重置表单函数
   const resetForm = () => {
@@ -465,28 +498,60 @@ export default function QuestFormModal({ isOpen, onClose, editQuest, initialPare
             )}
 
             {/* 奖励 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-inter text-gray-700 dark:text-white/80 mb-2">经验奖励</label>
-                <input
-                  type="number"
-                  value={expReward}
-                  onChange={(e) => setExpReward(parseInt(e.target.value))}
-                  className="w-full px-4 py-2 rounded-lg bg-white/90 dark:bg-white/10 border border-gray-300 dark:border-white/20 text-gray-900 dark:text-white font-inter focus:outline-none focus:border-cyber-cyan"
-                  min="0"
-                />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-inter text-gray-700 dark:text-white/80">任务奖励</label>
+                <button
+                  type="button"
+                  onClick={handleAIReward}
+                  disabled={aiRewardLoading || !title.trim()}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                    aiRewardLoading || !title.trim()
+                      ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-cyber-cyan/20 to-cyber-purple/20 text-cyber-cyan hover:from-cyber-cyan/30 hover:to-cyber-purple/30 border border-cyber-cyan/30'
+                  }`}
+                >
+                  {aiRewardLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      AI 计算中...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      AI 智能设定
+                    </>
+                  )}
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-inter text-gray-700 dark:text-white/80 mb-2">金币奖励</label>
-                <input
-                  type="number"
-                  value={coinReward}
-                  onChange={(e) => setCoinReward(parseInt(e.target.value))}
-                  className="w-full px-4 py-2 rounded-lg bg-white/90 dark:bg-white/10 border border-gray-300 dark:border-white/20 text-gray-900 dark:text-white font-inter focus:outline-none focus:border-cyber-cyan"
-                  min="0"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-inter text-gray-600 dark:text-white/60 mb-2">经验奖励</label>
+                  <input
+                    type="number"
+                    value={expReward}
+                    onChange={(e) => setExpReward(parseInt(e.target.value))}
+                    className="w-full px-4 py-2 rounded-lg bg-white/90 dark:bg-white/10 border border-gray-300 dark:border-white/20 text-gray-900 dark:text-white font-inter focus:outline-none focus:border-cyber-cyan"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-inter text-gray-600 dark:text-white/60 mb-2">金币奖励</label>
+                  <input
+                    type="number"
+                    value={coinReward}
+                    onChange={(e) => setCoinReward(parseInt(e.target.value))}
+                    className="w-full px-4 py-2 rounded-lg bg-white/90 dark:bg-white/10 border border-gray-300 dark:border-white/20 text-gray-900 dark:text-white font-inter focus:outline-none focus:border-cyber-cyan"
+                    min="0"
+                  />
+                </div>
               </div>
+
+              <p className="text-xs text-gray-600 dark:text-white/60">
+                💡 提示：点击"AI 智能设定"按钮，让 AI 根据任务类型和难度自动设定合理的奖励
+              </p>
             </div>
 
             {/* 优先级和标记 */}

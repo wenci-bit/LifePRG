@@ -520,6 +520,350 @@ async function callQwenAPI(config: any, prompt: string): Promise<string> {
 }
 
 /**
+ * AI 任务建议接口
+ */
+export interface AITaskSuggestion {
+  title: string;
+  description: string;
+  type: 'main' | 'side' | 'daily';
+  attributes: string[]; // ['int', 'vit', 'mng', 'cre']
+  estimatedDuration: number; // 分钟
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  tags: string[];
+  reason: string; // 推荐理由
+}
+
+/**
+ * AI 任务奖励建议接口
+ */
+export interface AITaskReward {
+  expReward: number;
+  coinReward: number;
+  reasoning: string; // 奖励设定理由
+}
+
+/**
+ * 根据用户配置生成每日任务建议
+ */
+export async function generateDailyTaskSuggestions(
+  userOnboarding: any,
+  userStats: any
+): Promise<AITaskSuggestion[]> {
+  try {
+    const config = getAIConfig();
+    const prompt = buildTaskSuggestionsPrompt(userOnboarding, userStats);
+
+    console.log('[AI 任务建议] 开始生成任务建议');
+
+    let responseText = '';
+    switch (config.provider) {
+      case AIProvider.DEEPSEEK:
+        responseText = await callDeepSeekAPI(config, prompt);
+        break;
+      case AIProvider.OPENAI:
+        responseText = await callOpenAIAPI(config, prompt);
+        break;
+      case AIProvider.CLAUDE:
+        responseText = await callClaudeAPI(config, prompt);
+        break;
+      case AIProvider.QWEN:
+        responseText = await callQwenAPI(config, prompt);
+        break;
+      default:
+        throw new Error(`不支持的 AI 提供商: ${config.provider}`);
+    }
+
+    // 解析任务建议
+    const suggestions = parseTaskSuggestions(responseText);
+    console.log('[AI 任务建议] 生成成功，共', suggestions.length, '个任务');
+    return suggestions;
+  } catch (error) {
+    console.error('[AI 任务建议] 生成失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 根据任务信息智能设定奖励
+ */
+export async function generateTaskReward(
+  taskTitle: string,
+  taskDescription: string,
+  taskType: 'main' | 'side' | 'daily',
+  attributes: string[]
+): Promise<AITaskReward> {
+  try {
+    const config = getAIConfig();
+    const prompt = buildTaskRewardPrompt(taskTitle, taskDescription, taskType, attributes);
+
+    console.log('[AI 奖励设定] 开始生成奖励建议');
+
+    let responseText = '';
+    switch (config.provider) {
+      case AIProvider.DEEPSEEK:
+        responseText = await callDeepSeekAPI(config, prompt);
+        break;
+      case AIProvider.OPENAI:
+        responseText = await callOpenAIAPI(config, prompt);
+        break;
+      case AIProvider.CLAUDE:
+        responseText = await callClaudeAPI(config, prompt);
+        break;
+      case AIProvider.QWEN:
+        responseText = await callQwenAPI(config, prompt);
+        break;
+      default:
+        throw new Error(`不支持的 AI 提供商: ${config.provider}`);
+    }
+
+    // 解析奖励建议
+    const reward = parseTaskReward(responseText);
+    console.log('[AI 奖励设定] 生成成功:', reward);
+    return reward;
+  } catch (error) {
+    console.error('[AI 奖励设定] 生成失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 构建任务建议提示词
+ */
+function buildTaskSuggestionsPrompt(userOnboarding: any, userStats: any): string {
+  const { role, customRole, growthGoals, customGoals, taskIntensity, preferences } = userOnboarding;
+  const roleText = role === 'other' ? customRole : role;
+  const dailyTaskCount = preferences?.dailyTaskCount || 5;
+
+  const roleLabels: Record<string, string> = {
+    student: '学生',
+    worker: '职场人',
+    freelancer: '自由职业者',
+    entrepreneur: '创业者',
+    researcher: '研究者',
+  };
+
+  const goalLabels: Record<string, string> = {
+    academic: '学术提升',
+    career: '职业发展',
+    health: '健康管理',
+    skill: '技能学习',
+    creativity: '创意表达',
+    social: '社交拓展',
+    finance: '财务规划',
+    hobby: '兴趣爱好',
+  };
+
+  const intensityLabels: Record<string, string> = {
+    light: '轻松模式',
+    moderate: '平衡模式',
+    intense: '挑战模式',
+  };
+
+  const goalsText = [
+    ...growthGoals.map((g: string) => goalLabels[g] || g),
+    ...customGoals
+  ].join('、');
+
+  return `你是一个专业的任务规划助手。请根据用户的个人信息，为他们生成今日任务建议。
+
+**用户信息：**
+- 身份：${roleLabels[role] || roleText}
+- 成长目标：${goalsText}
+- 任务强度：${intensityLabels[taskIntensity]}
+- 建议任务数：${dailyTaskCount}个
+- 当前等级：Lv.${userStats.level}
+- 累计完成任务：${userStats.totalQuestsCompleted}个
+
+**任务类型说明：**
+- main（主线任务）：重要且长期的目标，高经验值（50-100 EXP）
+- side（支线任务）：中等重要度，一次性任务（20-50 EXP）
+- daily（日常任务）：可重复的日常习惯（10-20 EXP）
+
+**属性说明：**
+- int（智力）：学习、阅读、思考相关
+- vit（活力）：运动、健康、休息相关
+- mng（管理）：规划、整理、时间管理相关
+- cre（创造）：创意、艺术、表达相关
+
+**输出要求：**
+1. 必须输出有效的JSON数组格式
+2. 用 \`\`\`json 和 \`\`\` 包裹
+3. 任务数量：${dailyTaskCount}个
+4. 任务要具体、可执行、符合用户身份和目标
+5. 合理分配任务类型（建议：1-2个主线，2-3个支线，2-3个日常）
+6. 每个任务必须包含推荐理由
+
+**输出格式：**
+
+\`\`\`json
+[
+  {
+    "title": "完成论文第三章初稿",
+    "description": "撰写论文第三章的文献综述部分，整理至少10篇相关文献",
+    "type": "main",
+    "attributes": ["int", "mng"],
+    "estimatedDuration": 120,
+    "priority": "high",
+    "tags": ["学术", "写作"],
+    "reason": "作为研究者，论文写作是核心任务，符合你的学术提升目标"
+  },
+  {
+    "title": "晨跑30分钟",
+    "description": "早晨进行30分钟慢跑，保持身体活力",
+    "type": "daily",
+    "attributes": ["vit"],
+    "estimatedDuration": 30,
+    "priority": "medium",
+    "tags": ["运动", "健康"],
+    "reason": "健康管理是你的成长目标之一，晨跑可以提升精力和专注力"
+  }
+]
+\`\`\`
+
+请立即生成任务建议，只输出JSON代码块，不要有其他内容！`;
+}
+
+/**
+ * 构建任务奖励提示词
+ */
+function buildTaskRewardPrompt(
+  title: string,
+  description: string,
+  type: 'main' | 'side' | 'daily',
+  attributes: string[]
+): string {
+  const typeLabels = {
+    main: '主线任务（重要长期目标）',
+    side: '支线任务（中等重要度）',
+    daily: '日常任务（可重复习惯）',
+  };
+
+  return `你是一个游戏化任务系统的奖励设计专家。请根据任务信息，设定合理的经验值和金币奖励。
+
+**任务信息：**
+- 标题：${title}
+- 描述：${description || '无'}
+- 类型：${typeLabels[type]}
+- 关联属性：${attributes.join('、')}
+
+**奖励设定原则：**
+1. 主线任务：50-100 EXP，30-60 金币
+2. 支线任务：20-50 EXP，15-30 金币
+3. 日常任务：10-20 EXP，5-15 金币
+4. 考虑任务难度、时长、重要性
+5. 多属性任务可以适当增加奖励
+
+**输出要求：**
+必须输出有效的JSON格式，用 \`\`\`json 和 \`\`\` 包裹
+
+**输出格式：**
+
+\`\`\`json
+{
+  "expReward": 60,
+  "coinReward": 35,
+  "reasoning": "这是一个主线任务，涉及学术写作，需要较长时间和高度专注，因此给予较高的经验值奖励。"
+}
+\`\`\`
+
+请立即生成奖励建议，只输出JSON代码块！`;
+}
+
+/**
+ * 解析任务建议
+ */
+function parseTaskSuggestions(rawText: string): AITaskSuggestion[] {
+  try {
+    console.log('[解析任务建议] 开始解析');
+
+    // 提取JSON
+    let jsonText = '';
+    const jsonBlockMatch = rawText.match(/```json\s*\n?([\s\S]*?)\n?```/);
+    if (jsonBlockMatch && jsonBlockMatch[1]) {
+      jsonText = jsonBlockMatch[1];
+    } else {
+      const firstBracket = rawText.indexOf('[');
+      const lastBracket = rawText.lastIndexOf(']');
+      if (firstBracket !== -1 && lastBracket !== -1) {
+        jsonText = rawText.substring(firstBracket, lastBracket + 1);
+      } else {
+        jsonText = rawText;
+      }
+    }
+
+    jsonText = cleanJsonText(jsonText);
+    const data = JSON.parse(jsonText);
+
+    if (!Array.isArray(data)) {
+      console.error('[解析任务建议] 返回的不是数组');
+      return [];
+    }
+
+    // 验证和修复每个任务
+    const tasks = data.map((task: any) => ({
+      title: task.title || '未命名任务',
+      description: task.description || '',
+      type: ['main', 'side', 'daily'].includes(task.type) ? task.type : 'side',
+      attributes: Array.isArray(task.attributes) ? task.attributes : ['int'],
+      estimatedDuration: task.estimatedDuration || 60,
+      priority: ['low', 'medium', 'high', 'urgent'].includes(task.priority) ? task.priority : 'medium',
+      tags: Array.isArray(task.tags) ? task.tags : [],
+      reason: task.reason || '推荐任务',
+    }));
+
+    console.log('[解析任务建议] 解析成功，共', tasks.length, '个任务');
+    return tasks;
+  } catch (error) {
+    console.error('[解析任务建议] 解析失败:', error);
+    return [];
+  }
+}
+
+/**
+ * 解析任务奖励
+ */
+function parseTaskReward(rawText: string): AITaskReward {
+  try {
+    console.log('[解析任务奖励] 开始解析');
+
+    // 提取JSON
+    let jsonText = '';
+    const jsonBlockMatch = rawText.match(/```json\s*\n?([\s\S]*?)\n?```/);
+    if (jsonBlockMatch && jsonBlockMatch[1]) {
+      jsonText = jsonBlockMatch[1];
+    } else {
+      const firstBrace = rawText.indexOf('{');
+      const lastBrace = rawText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        jsonText = rawText.substring(firstBrace, lastBrace + 1);
+      } else {
+        jsonText = rawText;
+      }
+    }
+
+    jsonText = cleanJsonText(jsonText);
+    const data = JSON.parse(jsonText);
+
+    const reward: AITaskReward = {
+      expReward: data.expReward || 30,
+      coinReward: data.coinReward || 20,
+      reasoning: data.reasoning || '根据任务类型自动设定',
+    };
+
+    console.log('[解析任务奖励] 解析成功:', reward);
+    return reward;
+  } catch (error) {
+    console.error('[解析任务奖励] 解析失败:', error);
+    // 返回默认值
+    return {
+      expReward: 30,
+      coinReward: 20,
+      reasoning: '解析失败，使用默认奖励',
+    };
+  }
+}
+
+/**
  * 构建发送给AI的提示词
  */
 function buildPrompt(userData: UserDataSummary): string {

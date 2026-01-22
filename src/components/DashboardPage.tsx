@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { useThemeStore } from '@/store/themeStore';
+import { useUserStore } from '@/store/userStore';
 import {
   TrendingUp,
   Coins,
@@ -24,6 +25,7 @@ import {
   Plus,
   Timer,
   Check,
+  Sparkles,
 } from 'lucide-react';
 import { QuestStatus, HabitStatus, type Quest, type Habit } from '@/types/game';
 import TaskActionMenu from './TaskActionMenu';
@@ -32,6 +34,7 @@ import QuestFormModal from './QuestFormModal';
 import PomodoroTimer from './PomodoroTimer';
 import FocusHistoryPanel from './FocusHistoryPanel';
 import AISummaryPanel from './AISummaryPanel';
+import DailyTaskSuggestions from './DailyTaskSuggestions';
 import { formatLocalDate, isSameDay, isToday } from '@/utils/dateUtils';
 
 export default function DashboardPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
@@ -43,8 +46,12 @@ export default function DashboardPage({ onNavigate }: { onNavigate?: (page: stri
   const [pomodoroTimers, setPomodoroTimers] = useState<string[]>([]);
   // 专注历史面板状态
   const [showFocusHistory, setShowFocusHistory] = useState(false);
+  // AI任务建议模态框状态
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
   // 获取当前主题
   const theme = useThemeStore((state) => state.theme);
+  // 获取当前用户
+  const currentUser = useUserStore((state) => state.currentUser);
 
   // 创建新的番茄钟
   const createNewPomodoro = () => {
@@ -307,6 +314,24 @@ export default function DashboardPage({ onNavigate }: { onNavigate?: (page: stri
 
               {/* 操作按钮组 */}
               <div className="flex items-center gap-3">
+                {/* AI任务建议按钮 */}
+                {currentUser?.onboarding?.completed && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAISuggestions(true)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-medium text-sm shadow-lg ${
+                      theme === 'dark'
+                        ? 'bg-gradient-to-r from-cyber-cyan to-cyber-purple hover:from-cyan-500 hover:to-purple-500 text-white border border-cyan-400/50 shadow-cyan-500/50'
+                        : 'bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white border border-cyan-600/30 shadow-cyan-400/30'
+                    }`}
+                    title="AI任务建议"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>AI建议</span>
+                  </motion.button>
+                )}
+
                 {/* 番茄钟按钮 */}
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -601,6 +626,12 @@ export default function DashboardPage({ onNavigate }: { onNavigate?: (page: stri
       <FocusHistoryPanel
         isOpen={showFocusHistory}
         onClose={() => setShowFocusHistory(false)}
+      />
+
+      {/* AI任务建议模态框 */}
+      <DailyTaskSuggestions
+        isOpen={showAISuggestions}
+        onClose={() => setShowAISuggestions(false)}
       />
     </div>
   );
