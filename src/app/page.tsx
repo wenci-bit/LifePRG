@@ -19,6 +19,7 @@ import AchievementNotification from '@/components/AchievementNotification';
 import CheckInNotification from '@/components/CheckInNotification';
 import LowAttributeWarning from '@/components/LowAttributeWarning';
 import LoginPage from '@/components/LoginPage';
+import OnboardingModal from '@/components/OnboardingModal';
 import { useGameStore } from '@/store/gameStore';
 import { useUserStore } from '@/store/userStore';
 
@@ -97,9 +98,11 @@ export default function Home() {
   const [showHero, setShowHero] = useState(true);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [showLowAttributeWarning, setShowLowAttributeWarning] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // 用户状态
   const isLoggedIn = useUserStore((state) => state.isLoggedIn);
+  const currentUser = useUserStore((state) => state.currentUser);
 
   // 从 store 获取通知状态
   const levelUpNotification = useGameStore((state) => state.notifications.levelUp);
@@ -110,6 +113,13 @@ export default function Home() {
   const dismissCheckInNotification = useGameStore((state) => state.dismissCheckInNotification);
   const checkDailyLogin = useGameStore((state) => state.checkDailyLogin);
   const getLowAttributeWarnings = useGameStore((state) => state.getLowAttributeWarnings);
+
+  // 检查是否需要显示引导
+  useEffect(() => {
+    if (isLoggedIn && currentUser && !currentUser.onboarding?.completed) {
+      setShowOnboarding(true);
+    }
+  }, [isLoggedIn, currentUser]);
 
   // 检查每日登录（仅在用户已登录时）
   useEffect(() => {
@@ -153,6 +163,11 @@ export default function Home() {
     // 用户数据会通过 zustand 自动同步
   };
 
+  // 完成引导设置
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
+
   // 如果未登录，显示登录页面
   if (!isLoggedIn) {
     return (
@@ -167,6 +182,9 @@ export default function Home() {
     <main className="min-h-screen relative">
       {/* 粒子背景层 */}
       <ParticleBackground />
+
+      {/* 引导设置模态框 */}
+      <OnboardingModal isOpen={showOnboarding} onComplete={handleOnboardingComplete} />
 
       {/* 主题切换按钮 */}
       <ThemeToggle />

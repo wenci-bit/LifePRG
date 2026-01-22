@@ -525,6 +525,68 @@ export default function UserProfilePage() {
             )}
           </div>
 
+          {/* 引导配置 */}
+          {currentUser.onboarding?.completed && (
+            <div className="pt-4 border-t border-gray-200 dark:border-white/10">
+              <label className="block text-sm font-medium text-gray-700 dark:text-white/80 mb-3">成长配置</label>
+              <div className="space-y-3">
+                {/* 身份 */}
+                <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/5">
+                  <span className="text-xs text-gray-600 dark:text-white/60">身份：</span>
+                  <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+                    {currentUser.onboarding.role === 'student' && '学生'}
+                    {currentUser.onboarding.role === 'worker' && '职场人'}
+                    {currentUser.onboarding.role === 'freelancer' && '自由职业者'}
+                    {currentUser.onboarding.role === 'entrepreneur' && '创业者'}
+                    {currentUser.onboarding.role === 'researcher' && '研究者'}
+                    {currentUser.onboarding.role === 'other' && (currentUser.onboarding.customRole || '其他')}
+                  </span>
+                </div>
+
+                {/* 成长目标 */}
+                {(currentUser.onboarding.growthGoals.length > 0 || currentUser.onboarding.customGoals.length > 0) && (
+                  <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/5">
+                    <span className="text-xs text-gray-600 dark:text-white/60 block mb-2">成长目标：</span>
+                    <div className="flex flex-wrap gap-2">
+                      {currentUser.onboarding.growthGoals.map((goal) => {
+                        const goalLabels: Record<string, string> = {
+                          academic: '学术提升',
+                          career: '职业发展',
+                          health: '健康管理',
+                          skill: '技能学习',
+                          creativity: '创意表达',
+                          social: '社交拓展',
+                          finance: '财务规划',
+                          hobby: '兴趣爱好',
+                        };
+                        return (
+                          <span key={goal} className="px-2 py-1 bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 rounded text-xs">
+                            {goalLabels[goal] || goal}
+                          </span>
+                        );
+                      })}
+                      {currentUser.onboarding.customGoals.map((goal) => (
+                        <span key={goal} className="px-2 py-1 bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 rounded text-xs">
+                          {goal}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 任务强度 */}
+                <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/5">
+                  <span className="text-xs text-gray-600 dark:text-white/60">任务强度：</span>
+                  <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
+                    {currentUser.onboarding.taskIntensity === 'light' && '轻松模式'}
+                    {currentUser.onboarding.taskIntensity === 'moderate' && '平衡模式'}
+                    {currentUser.onboarding.taskIntensity === 'intense' && '挑战模式'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 账户信息 */}
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-white/10">
             <div className="p-4 rounded-lg bg-gray-50 dark:bg-white/5">

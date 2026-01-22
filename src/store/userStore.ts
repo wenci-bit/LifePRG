@@ -68,6 +68,12 @@ export const useUserStore = create<UserStore>()(
           nickname: username,
           createdAt: Date.now(),
           lastLoginAt: Date.now(),
+          onboarding: {
+            completed: false, // 新用户未完成引导
+            growthGoals: [],
+            customGoals: [],
+            taskIntensity: 'moderate',
+          },
         };
 
         // 保存凭证
