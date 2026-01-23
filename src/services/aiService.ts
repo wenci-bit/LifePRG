@@ -93,6 +93,8 @@ const getAIConfig = () => {
       temperature: DEFAULT_TEMPERATURE,
       maxTokens: DEFAULT_MAX_TOKENS,
       systemPrompt: DEFAULT_SYSTEM_PROMPT,
+      taskConstraints: '',
+      summaryConstraints: '',
     };
   }
 
@@ -103,6 +105,8 @@ const getAIConfig = () => {
     temperature: parseFloat(localStorage.getItem('ai-temperature') || String(DEFAULT_TEMPERATURE)),
     maxTokens: parseInt(localStorage.getItem('ai-max-tokens') || String(DEFAULT_MAX_TOKENS)),
     systemPrompt: localStorage.getItem('ai-custom-prompt') || DEFAULT_SYSTEM_PROMPT,
+    taskConstraints: localStorage.getItem('ai-task-constraints') || '',
+    summaryConstraints: localStorage.getItem('ai-summary-constraints') || '',
   };
 };
 
@@ -630,6 +634,7 @@ export async function generateTaskReward(
  * 构建任务建议提示词
  */
 function buildTaskSuggestionsPrompt(userOnboarding: any, userStats: any): string {
+  const config = getAIConfig();
   const { role, customRole, growthGoals, customGoals, taskIntensity, preferences } = userOnboarding;
   const roleText = role === 'other' ? customRole : role;
   const dailyTaskCount = preferences?.dailyTaskCount || 5;
@@ -664,7 +669,12 @@ function buildTaskSuggestionsPrompt(userOnboarding: any, userStats: any): string
     ...customGoals
   ].join('、');
 
-  return `你是一个专业的任务规划助手。请根据用户的个人信息，为他们生成今日任务建议。
+  // 构建用户限定条件部分
+  const constraintsSection = config.taskConstraints
+    ? `\n**用户自定义限定条件（必须遵守）：**\n${config.taskConstraints}\n`
+    : '';
+
+  return `你是一个专业的任务规划助手。请根据用户的个人信息，为他们生成今日任务建议。${constraintsSection}
 
 **用户信息：**
 - 身份：${roleLabels[role] || roleText}
@@ -867,6 +877,7 @@ function parseTaskReward(rawText: string): AITaskReward {
  * 构建发送给AI的提示词
  */
 function buildPrompt(userData: UserDataSummary): string {
+  const config = getAIConfig();
   const {
     todayTasks,
     habits,
@@ -884,7 +895,12 @@ function buildPrompt(userData: UserDataSummary): string {
   // 分析属性平衡
   const attributeBalance = analyzeAttributes(attributes);
 
-  let prompt = `请分析以下用户数据并给出个性化建议：
+  // 构建用户限定条件部分
+  const constraintsSection = config.summaryConstraints
+    ? `\n**用户自定义限定条件（必须遵守）：**\n${config.summaryConstraints}\n`
+    : '';
+
+  let prompt = `请分析以下用户数据并给出个性化建议：${constraintsSection}
 
 📊 今日任务情况：
 - 总任务数：${todayTasks.total} 个
